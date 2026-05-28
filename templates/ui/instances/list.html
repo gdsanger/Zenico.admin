@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Instanzen - zenico.admin{% endblock %}
+
+{% block page_title %}Instanzen{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'instance_list' %}">
+                Alle
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'provisioning' %}active{% endif %}" href="?status=provisioning">
+                Provisioning
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'active' %}active{% endif %}" href="?status=active">
+                Aktiv
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'suspended' %}active{% endif %}" href="?status=suspended">
+                Gesperrt
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'deprovisioned' %}active{% endif %}" href="?status=deprovisioned">
+                Deprovisioniert
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>FQDN</th>
+                    <th>Kunde</th>
+                    <th>Status</th>
+                    <th>Version</th>
+                    <th>Seats</th>
+                    <th>Health</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instance in instances %}
+                <tr onclick="window.location.href='{% url 'instance_detail' instance.id %}'">
+                    <td>
+                        <strong>{{ instance.fqdn }}</strong>
+                        {% if instance.is_master %}
+                        <span class="badge bg-primary ms-2">Master</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ instance.customer.company_name }}</td>
+                    <td>{% status_badge instance.status %}</td>
+                    <td>{{ instance.version|default:"-" }}</td>
+                    <td>{{ instance.user_seats }}</td>
+                    <td>
+                        {% if instance.health_check_ok == True %}
+                        <i class="ti ti-circle-filled text-success"></i>
+                        {% elif instance.health_check_ok == False %}
+                        <i class="ti ti-circle-filled text-danger"></i>
+                        {% else %}
+                        <i class="ti ti-circle-filled text-secondary"></i>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                            <i class="ti ti-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Keine Instanzen gefunden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="p-3 border-top">
+        <nav>
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ instance.fqdn }} - Instanzen - zenico.admin{% endblock %}
+
+{% block page_title %}{{ instance.fqdn }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="mb-0">{{ instance.fqdn }}</h2>
+        {% status_badge instance.status %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Instance Information -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Informationen</h3>
+            </div>
+            <div class="p-3">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Kunde:</th>
+                        <td>
+                            <a href="{% url 'customer_detail' instance.customer.slug %}">
+                                {{ instance.customer.company_name }}
+                            </a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Typ:</th>
+                        <td>
+                            {% if instance.is_master %}
+                            <span class="badge bg-primary">Master</span>
+                            {% else %}
+                            Sub-Instance
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th>Version:</th>
+                        <td>{{ instance.version|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>User Seats:</th>
+                        <td>{{ instance.user_seats }}</td>
+                    </tr>
+                    <tr>
+                        <th>KI-Addon:</th>
+                        <td>
+                            {% if instance.ai_addon_active %}
+                            <i class="ti ti-check text-success"></i> Aktiv
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% if instance.provisioned_at %}
+                    <tr>
+                        <th>Provisioniert:</th>
+                        <td>{{ instance.provisioned_at|date:"d.m.Y H:i" }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Konfiguration</h3>
+            </div>
+            <div class="p-3">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Server Host:</th>
+                        <td>{{ instance.server_host|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>DB Name:</th>
+                        <td>{{ instance.db_name|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>DB User:</th>
+                        <td>{{ instance.db_user|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>API Key:</th>
+                        <td>
+                            <div id="api-key-display">
+                                <code>{{ instance.api_key|mask_key }}</code>
+                                <button
+                                    class="btn btn-sm btn-outline-secondary ms-2"
+                                    hx-get="{% url 'instance_api_key_reveal' instance.id %}"
+                                    hx-target="#api-key-value"
+                                    hx-swap="innerHTML"
+                                >
+                                    <i class="ti ti-eye"></i> Anzeigen
+                                </button>
+                            </div>
+                            <div id="api-key-value"></div>
+                            <button
+                                class="btn btn-sm btn-warning mt-2"
+                                hx-post="{% url 'instance_api_key_regenerate' instance.id %}"
+                                hx-confirm="Möchten Sie wirklich einen neuen API Key generieren? Der alte Key wird ungültig."
+                            >
+                                <i class="ti ti-refresh"></i> Key regenerieren
+                            </button>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Licenses -->
+<div class="table-card mt-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">User-Lizenzen</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>E-Mail</th>
+                    <th>Rolle</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for license in user_licenses %}
+                <tr>
+                    <td>{{ license.display_name }}</td>
+                    <td>{{ license.email }}</td>
+                    <td>{{ license.get_role_display }}</td>
+                    <td>
+                        {% if license.is_active %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">
+                        Keine Lizenzen vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Audit Log -->
+<div class="table-card mt-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Aktivitäten</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Zeitstempel</th>
+                    <th>Aktion</th>
+                    <th>Akteur</th>
+                    <th>Notiz</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td>{{ log.created_at|timesince_short }}</td>
+                    <td><code>{{ log.action }}</code></td>
+                    <td>{{ log.actor_email }}</td>
+                    <td>{{ log.note|truncatewords:10 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">
+                        Keine Aktivitäten vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

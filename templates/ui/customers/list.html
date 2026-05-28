@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Kunden - zenico.admin{% endblock %}
+
+{% block page_title %}Kunden{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <form method="get" action="{% url 'customer_list' %}">
+                <div class="input-group">
+                    <input
+                        type="text"
+                        name="search"
+                        class="form-control"
+                        placeholder="Suche nach Name, Slug oder E-Mail..."
+                        value="{{ search_query }}"
+                        hx-get="{% url 'customer_list' %}"
+                        hx-trigger="keyup changed delay:300ms"
+                        hx-target="#customer-table"
+                        hx-include="[name='status']"
+                    >
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="ti ti-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'customer_create' %}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> Neuer Kunde
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mt-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'customer_list' %}">
+                Alle
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'active' %}active{% endif %}" href="?status=active">
+                Aktiv
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'suspended' %}active{% endif %}" href="?status=suspended">
+                Gesperrt
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'cancelled' %}active{% endif %}" href="?status=cancelled">
+                Gekündigt
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="table-card" id="customer-table">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Firma</th>
+                    <th>Slug</th>
+                    <th>Plan</th>
+                    <th>Instanzen</th>
+                    <th>Lizenzen</th>
+                    <th>Status</th>
+                    <th>Erstellt</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for customer in customers %}
+                <tr onclick="window.location.href='{% url 'customer_detail' customer.slug %}'">
+                    <td>
+                        <strong>{{ customer.company_name }}</strong><br>
+                        <small class="text-muted">{{ customer.contact_email }}</small>
+                    </td>
+                    <td>
+                        <code>{{ customer.slug }}</code>
+                    </td>
+                    <td>
+                        {% if customer.active_subscription %}
+                        {{ customer.active_subscription.plan.display_name }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if customer.active_subscription %}
+                        {{ customer.active_subscription.used_instance_seats }}/{{ customer.active_subscription.instance_seats_total }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if customer.active_subscription %}
+                        {{ customer.active_subscription.used_user_seats }}/{{ customer.active_subscription.user_seats_total }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>{% status_badge customer.status %}</td>
+                    <td>{{ customer.created_at|date:"d.m.Y" }}</td>
+                    <td>
+                        <a href="{% url 'customer_detail' customer.slug %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                            <i class="ti ti-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        Keine Kunden gefunden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="p-3 border-top">
+        <nav>
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
