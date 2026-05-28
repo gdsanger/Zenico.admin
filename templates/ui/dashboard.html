@@ -98,8 +98,7 @@
                         <td>{% status_badge customer.status %}</td>
                         <td>
                             {% if customer.active_subscription %}
-                            {% load ui_tags %}
-                            {{ customer|attr:'active_subscription'|attr:'user_seats_total'|multiply:customer.active_subscription.plan.price_per_user|money }}
+                            <span class="text-muted">{{ customer.active_subscription.plan.price_per_user|money }}</span>
                             {% else %}
                             -
                             {% endif %}
