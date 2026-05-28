@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Login - zenico.admin{% endblock %}
+
+{% block unauthenticated_content %}
+<div class="login-page">
+    <div class="login-card">
+        <div class="login-logo">
+            <i class="ti ti-bolt"></i> zenico.admin
+        </div>
+
+        <form method="post" action="{% url 'login' %}">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger" role="alert">
+                {{ form.non_field_errors }}
+            </div>
+            {% endif %}
+
+            <div class="mb-3">
+                <label for="id_username" class="form-label">E-Mail</label>
+                <input
+                    type="email"
+                    class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                    id="id_username"
+                    name="username"
+                    placeholder="ihre@email.com"
+                    required
+                    autofocus
+                >
+                {% if form.username.errors %}
+                <div class="invalid-feedback">
+                    {{ form.username.errors }}
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="mb-4">
+                <label for="id_password" class="form-label">Passwort</label>
+                <input
+                    type="password"
+                    class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                    id="id_password"
+                    name="password"
+                    placeholder="••••••••"
+                    required
+                >
+                {% if form.password.errors %}
+                <div class="invalid-feedback">
+                    {{ form.password.errors }}
+                </div>
+                {% endif %}
+            </div>
+
+            <button type="submit" class="btn btn-primary w-100 mb-3">
+                <i class="ti ti-login"></i> Anmelden
+            </button>
+
+            {% if next %}
+            <input type="hidden" name="next" value="{{ next }}">
+            {% endif %}
+        </form>
+
+        <div class="text-center text-muted" style="font-size: 0.85rem;">
+            <i class="ti ti-shield-lock"></i> Nur für autorisierte Benutzer
+        </div>
+    </div>
+</div>
+{% endblock %}

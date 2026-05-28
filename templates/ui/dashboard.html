@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Dashboard - zenico.admin{% endblock %}
+
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- KPI Cards -->
+<div class="kpi-grid" hx-get="{% url 'dashboard_kpis' %}" hx-trigger="every 60s" hx-swap="outerHTML">
+    <div class="kpi-card">
+        <div class="kpi-label">Kunden</div>
+        <div class="kpi-value">{{ total_customers }}</div>
+        <div class="kpi-subinfo {% if new_customers_this_month > 0 %}positive{% endif %}">
+            +{{ new_customers_this_month }} diesen Monat
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">Instanzen</div>
+        <div class="kpi-value">{{ total_instances }}</div>
+        <div class="kpi-subinfo">
+            {% if provisioning_instances > 0 %}
+            davon {{ provisioning_instances }} provisioning
+            {% else %}
+            alle aktiv
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">Aktive Lizenzen</div>
+        <div class="kpi-value">{{ total_licenses }}</div>
+        <div class="kpi-subinfo">
+            von {{ total_licenses_booked }} gebucht
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">MRR</div>
+        <div class="kpi-value">{{ mrr|money }}</div>
+        <div class="kpi-subinfo text-muted">
+            Monatlicher Umsatz
+        </div>
+    </div>
+</div>
+
+<!-- Dashboard Grid -->
+<div class="dashboard-grid">
+    <!-- Customer Table -->
+    <div class="table-card">
+        <div class="table-card-header">
+            <h3 class="table-card-title">Aktuelle Kunden</h3>
+            <a href="{% url 'customer_list' %}" class="btn btn-sm btn-outline-primary">
+                Alle anzeigen <i class="ti ti-arrow-right"></i>
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Kunde</th>
+                        <th>Plan</th>
+                        <th>Instanzen</th>
+                        <th>Lizenzen</th>
+                        <th>Status</th>
+                        <th>MRR</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for customer in dashboard_customers %}
+                    <tr onclick="window.location.href='{% url 'customer_detail' customer.slug %}'">
+                        <td>
+                            <strong>{{ customer.company_name }}</strong><br>
+                            <small class="text-muted">{{ customer.slug }}.zenico.app</small>
+                        </td>
+                        <td>
+                            {% if customer.active_subscription %}
+                            {{ customer.active_subscription.plan.display_name }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if customer.active_subscription %}
+                            {{ customer.active_subscription.used_instance_seats }}/{{ customer.active_subscription.instance_seats_total }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if customer.active_subscription %}
+                            {{ customer.active_subscription.used_user_seats }}/{{ customer.active_subscription.user_seats_total }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>{% status_badge customer.status %}</td>
+                        <td>
+                            {% if customer.active_subscription %}
+                            <span class="text-muted">{{ customer.active_subscription.plan.price_per_user|money }}</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            Keine Kunden vorhanden
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Activity Feed -->
+    <div class="activity-feed" hx-get="{% url 'dashboard_activity' %}" hx-trigger="every 30s" hx-swap="innerHTML">
+        <div class="table-card-header">
+            <h3 class="table-card-title">Aktivitäten</h3>
+            <a href="{% url 'audit_log_list' %}" class="btn btn-sm btn-outline-primary">
+                Audit Log <i class="ti ti-arrow-right"></i>
+            </a>
+        </div>
+
+        {% for log in activity_feed %}
+        <div class="activity-item">
+            <div class="activity-icon {% if 'created' in log.action or 'provisioned' in log.action %}success{% elif 'warning' in log.action or 'payment' in log.action or 'past_due' in log.action %}warning{% elif 'suspended' in log.action or 'failed' in log.action %}danger{% else %}info{% endif %}">
+                {% if 'created' in log.action or 'provisioned' in log.action %}
+                <i class="ti ti-plus"></i>
+                {% elif 'warning' in log.action or 'payment' in log.action %}
+                <i class="ti ti-alert-triangle"></i>
+                {% elif 'suspended' in log.action or 'failed' in log.action %}
+                <i class="ti ti-x"></i>
+                {% else %}
+                <i class="ti ti-circle"></i>
+                {% endif %}
+            </div>
+            <div class="activity-content">
+                <div class="activity-text">
+                    <strong>{{ log.action|title }}</strong>
+                    {% if log.customer %}
+                    - {{ log.customer.company_name }}
+                    {% endif %}
+                    {% if log.note %}
+                    <br><small class="text-muted">{{ log.note|truncatewords:15 }}</small>
+                    {% endif %}
+                </div>
+                <div class="activity-time">{{ log.created_at|timesince_short }}</div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="activity-item">
+            <div class="activity-content">
+                <div class="activity-text text-muted">Keine Aktivitäten vorhanden</div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

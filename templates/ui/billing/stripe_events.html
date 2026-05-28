@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Stripe Events - zenico.admin{% endblock %}
+
+{% block page_title %}Stripe Events{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <ul class="nav nav-tabs">
+        <li class="nav-item">
+            <a class="nav-link {% if not request.GET.unprocessed and not request.GET.failed %}active{% endif %}" href="{% url 'stripe_event_list' %}">
+                Alle
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.GET.unprocessed %}active{% endif %}" href="?unprocessed=1">
+                Unverarbeitet
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if request.GET.failed %}active{% endif %}" href="?failed=1">
+                Fehlgeschlagen
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Event ID</th>
+                    <th>Typ</th>
+                    <th>Kunde</th>
+                    <th>Status</th>
+                    <th>Empfangen</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for event in stripe_events %}
+                <tr>
+                    <td><code>{{ event.stripe_event_id }}</code></td>
+                    <td>{{ event.event_type }}</td>
+                    <td>
+                        {% if event.customer %}
+                        <a href="{% url 'customer_detail' event.customer.slug %}">
+                            {{ event.customer.company_name }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if event.processed %}
+                            {% if event.error_message %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                            <span class="badge bg-success">Processed</span>
+                            {% endif %}
+                        {% else %}
+                        <span class="badge bg-warning">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ event.received_at|timesince_short }}</td>
+                    <td>
+                        <button
+                            class="btn btn-sm btn-outline-secondary"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#event-{{ event.id }}"
+                        >
+                            <i class="ti ti-code"></i> Payload
+                        </button>
+                    </td>
+                </tr>
+                <tr class="collapse" id="event-{{ event.id }}">
+                    <td colspan="6">
+                        <div class="bg-light p-3" style="max-height: 300px; overflow: auto;">
+                            <pre class="mb-0"><code>{{ event.payload|safe }}</code></pre>
+                        </div>
+                        {% if event.error_message %}
+                        <div class="alert alert-danger mt-2 mb-0">
+                            <strong>Error:</strong> {{ event.error_message }}
+                        </div>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Keine Events gefunden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="p-3 border-top">
+        <nav>
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.unprocessed %}&unprocessed=1{% endif %}{% if request.GET.failed %}&failed=1{% endif %}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.unprocessed %}&unprocessed=1{% endif %}{% if request.GET.failed %}&failed=1{% endif %}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

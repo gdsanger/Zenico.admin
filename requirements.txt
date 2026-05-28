@@ -5,3 +5,5 @@ dj-database-url
 msal>=1.28
 requests>=2.31
 stripe>=8.0
+django-htmx>=1.17
+django-bootstrap5>=24.1

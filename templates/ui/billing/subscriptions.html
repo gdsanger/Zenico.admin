@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Abonnements - zenico.admin{% endblock %}
+
+{% block page_title %}Abonnements{% endblock %}
+
+{% block content %}
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Kunde</th>
+                    <th>Plan</th>
+                    <th>Status</th>
+                    <th>User Seats</th>
+                    <th>Instanz Seats</th>
+                    <th>KI-Addon</th>
+                    <th>Zeitraum</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscription in subscriptions %}
+                <tr>
+                    <td>
+                        <a href="{% url 'customer_detail' subscription.customer.slug %}">
+                            {{ subscription.customer.company_name }}
+                        </a>
+                    </td>
+                    <td>{{ subscription.plan.display_name }}</td>
+                    <td>{% status_badge subscription.stripe_status %}</td>
+                    <td>{{ subscription.user_seats_total }}</td>
+                    <td>{{ subscription.instance_seats_total }}</td>
+                    <td>
+                        {% if subscription.ai_addon_active %}
+                        <i class="ti ti-check text-success"></i>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if subscription.current_period_start %}
+                        {{ subscription.current_period_start|date:"d.m.Y" }} - {{ subscription.current_period_end|date:"d.m.Y" }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Keine Abonnements vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if is_paginated %}
+    <div class="p-3 border-top">
+        <nav>
+            <ul class="pagination mb-0 justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">
+                        Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

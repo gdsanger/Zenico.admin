@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ customer.company_name }} - Kunden - zenico.admin{% endblock %}
+
+{% block page_title %}{{ customer.company_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="mb-0">{{ customer.company_name }}</h2>
+        <span class="badge bg-secondary">{{ customer.slug }}</span>
+        {% status_badge customer.status %}
+
+        <div class="ms-auto">
+            <div class="btn-group">
+                <button type="button" class="btn btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                    <i class="ti ti-dots"></i> Aktionen
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if customer.status == 'active' %}
+                    <li>
+                        <form method="post" action="{% url 'customer_suspend' customer.slug %}">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item text-warning" data-confirm="Möchten Sie diesen Kunden wirklich sperren?">
+                                <i class="ti ti-lock"></i> Kunden sperren
+                            </button>
+                        </form>
+                    </li>
+                    {% elif customer.status == 'suspended' %}
+                    <li>
+                        <form method="post" action="{% url 'customer_reactivate' customer.slug %}">
+                            {% csrf_token %}
+                            <button type="submit" class="dropdown-item text-success">
+                                <i class="ti ti-lock-open"></i> Kunden reaktivieren
+                            </button>
+                        </form>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column -->
+    <div class="col-md-6">
+        <!-- Contact Information -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Kontaktinformationen</h3>
+            </div>
+            <div class="p-3">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Ansprechpartner:</th>
+                        <td>{{ customer.contact_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>E-Mail:</th>
+                        <td><a href="mailto:{{ customer.contact_email }}">{{ customer.contact_email }}</a></td>
+                    </tr>
+                    {% if customer.contact_phone %}
+                    <tr>
+                        <th>Telefon:</th>
+                        <td>{{ customer.contact_phone }}</td>
+                    </tr>
+                    {% endif %}
+                    <tr>
+                        <th>Rechnungs-E-Mail:</th>
+                        <td><a href="mailto:{{ customer.billing_email }}">{{ customer.billing_email }}</a></td>
+                    </tr>
+                    <tr>
+                        <th>Land:</th>
+                        <td>{{ customer.billing_country }}</td>
+                    </tr>
+                    {% if customer.vat_id %}
+                    <tr>
+                        <th>USt-IdNr.:</th>
+                        <td>{{ customer.vat_id }}</td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Column -->
+    <div class="col-md-6">
+        <!-- Subscription Information -->
+        <div class="table-card mb-4">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Abonnement</h3>
+            </div>
+            <div class="p-3">
+                {% if customer.active_subscription %}
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Plan:</th>
+                        <td>{{ customer.active_subscription.plan.display_name }}</td>
+                    </tr>
+                    <tr>
+                        <th>Status:</th>
+                        <td>{% status_badge customer.active_subscription.stripe_status %}</td>
+                    </tr>
+                    <tr>
+                        <th>User Seats:</th>
+                        <td>{{ customer.active_subscription.used_user_seats }}/{{ customer.active_subscription.user_seats_total }}</td>
+                    </tr>
+                    <tr>
+                        <th>Instanz Seats:</th>
+                        <td>{{ customer.active_subscription.used_instance_seats }}/{{ customer.active_subscription.instance_seats_total }}</td>
+                    </tr>
+                    {% if customer.active_subscription.ai_addon_active %}
+                    <tr>
+                        <th>KI-Addon:</th>
+                        <td><i class="ti ti-check text-success"></i> Aktiv</td>
+                    </tr>
+                    {% endif %}
+                </table>
+                {% else %}
+                <p class="text-muted mb-0">Kein aktives Abonnement</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Instances -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Instanzen</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>FQDN</th>
+                    <th>Status</th>
+                    <th>User Seats</th>
+                    <th>Version</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for instance in instances %}
+                <tr>
+                    <td>
+                        <strong>{{ instance.fqdn }}</strong>
+                        {% if instance.is_master %}
+                        <span class="badge bg-primary ms-2">Master</span>
+                        {% endif %}
+                    </td>
+                    <td>{% status_badge instance.status %}</td>
+                    <td>{{ instance.user_seats }}</td>
+                    <td>{{ instance.version|default:"-" }}</td>
+                    <td>
+                        <a href="{% url 'instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-3">
+                        Keine Instanzen vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Audit Log -->
+<div class="table-card">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Aktivitäten</h3>
+        <a href="{% url 'audit_log_list' %}?customer={{ customer.id }}" class="btn btn-sm btn-outline-primary">
+            Alle anzeigen <i class="ti ti-arrow-right"></i>
+        </a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm mb-0">
+            <thead>
+                <tr>
+                    <th>Zeitstempel</th>
+                    <th>Aktion</th>
+                    <th>Akteur</th>
+                    <th>Notiz</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in audit_logs %}
+                <tr>
+                    <td>{{ log.created_at|timesince_short }}</td>
+                    <td><code>{{ log.action }}</code></td>
+                    <td>{{ log.actor_email }}</td>
+                    <td>{{ log.note|truncatewords:10 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">
+                        Keine Aktivitäten vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
