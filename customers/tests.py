@@ -1,9 +1,14 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.utils import timezone
+from unittest.mock import patch
 from .models import Plan, Customer, Subscription
+from .services import CustomerService
+from instances.models import Instance
+from audit.models import AuditLog
 
 
 class PlanModelTest(TestCase):
@@ -676,4 +681,373 @@ class SubscriptionModelTest(TestCase):
 
         self.assertEqual(subscription.current_period_start, start_date)
         self.assertEqual(subscription.current_period_end, end_date)
+
+
+class CustomerServiceTest(TestCase):
+    """Test cases for the CustomerService."""
+
+    def setUp(self):
+        """Set up test data."""
+        self.plan = Plan.objects.filter(name='starter').first()
+
+    def test_create_customer_success(self):
+        """Test successful customer creation with all related objects."""
+        # Call the service
+        customer, subscription, instance = CustomerService.create_customer(
+            slug='testco',
+            company_name='Test Company GmbH',
+            contact_name='John Doe',
+            contact_email='john@testco.de',
+            billing_email='billing@testco.de',
+            plan=self.plan,
+            user_seats=10,
+            instance_seats=3,
+            stripe_subscription_id='sub_test123',
+            ai_addon=True,
+            billing_address='Test Street 123',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            billing_country='DE',
+        )
+
+        # Verify Customer was created
+        self.assertIsNotNone(customer.id)
+        self.assertEqual(customer.slug, 'testco')
+        self.assertEqual(customer.company_name, 'Test Company GmbH')
+        self.assertEqual(customer.contact_name, 'John Doe')
+        self.assertEqual(customer.contact_email, 'john@testco.de')
+        self.assertEqual(customer.billing_email, 'billing@testco.de')
+        self.assertEqual(customer.status, 'active')
+
+        # Verify Customer exists in database
+        self.assertTrue(Customer.objects.filter(slug='testco').exists())
+
+        # Verify Subscription was created
+        self.assertIsNotNone(subscription.id)
+        self.assertEqual(subscription.customer, customer)
+        self.assertEqual(subscription.plan, self.plan)
+        self.assertEqual(subscription.stripe_subscription_id, 'sub_test123')
+        self.assertEqual(subscription.stripe_status, 'active')
+        self.assertEqual(subscription.user_seats_total, 10)
+        self.assertEqual(subscription.instance_seats_total, 3)
+        self.assertTrue(subscription.ai_addon_active)
+        self.assertIsNotNone(subscription.current_period_start)
+
+        # Verify Subscription exists in database
+        self.assertTrue(Subscription.objects.filter(customer=customer).exists())
+
+        # Verify Master Instance was created
+        self.assertIsNotNone(instance.id)
+        self.assertEqual(instance.customer, customer)
+        self.assertEqual(instance.subscription, subscription)
+        self.assertEqual(instance.slug, 'testco')  # Master slug matches customer slug
+        self.assertTrue(instance.is_master)
+        self.assertEqual(instance.display_name, 'Test Company GmbH Master')
+        self.assertEqual(instance.user_seats, 10)
+        self.assertTrue(instance.ai_addon_active)
+        self.assertEqual(instance.status, 'provisioning')
+        self.assertIsNotNone(instance.api_key)
+
+        # Verify Instance exists in database
+        self.assertTrue(Instance.objects.filter(customer=customer, is_master=True).exists())
+
+        # Verify AuditLog entry was created
+        audit_logs = AuditLog.objects.filter(customer=customer, action='customer.created')
+        self.assertEqual(audit_logs.count(), 1)
+        audit_log = audit_logs.first()
+        self.assertEqual(audit_log.actor_email, 'system')
+        self.assertEqual(audit_log.resource_type, 'Customer')
+        self.assertEqual(audit_log.resource_id, str(customer.id))
+        self.assertIsNotNone(audit_log.after)
+        self.assertEqual(audit_log.after['slug'], 'testco')
+        self.assertEqual(audit_log.after['company_name'], 'Test Company GmbH')
+        self.assertEqual(audit_log.after['user_seats'], 10)
+
+    def test_create_customer_minimal_params(self):
+        """Test customer creation with minimal required parameters."""
+        customer, subscription, instance = CustomerService.create_customer(
+            slug='minimal',
+            company_name='Minimal Co',
+            contact_name='Jane Doe',
+            contact_email='jane@minimal.de',
+            billing_email='billing@minimal.de',
+            billing_address='Test St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_minimal123',
+        )
+
+        # Verify all objects were created
+        self.assertEqual(customer.slug, 'minimal')
+        self.assertEqual(subscription.stripe_subscription_id, 'sub_minimal123')
+        self.assertEqual(instance.slug, 'minimal')
+        self.assertTrue(instance.is_master)
+        self.assertFalse(subscription.ai_addon_active)
+
+    def test_create_customer_rollback_on_duplicate_slug(self):
+        """Test that duplicate slug causes complete rollback."""
+        # Create first customer
+        CustomerService.create_customer(
+            slug='testco',
+            company_name='Test Company',
+            contact_name='John Doe',
+            contact_email='john@testco.de',
+            billing_email='billing@testco.de',
+            billing_address='Test St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_first',
+        )
+
+        # Try to create customer with duplicate slug
+        with self.assertRaises(ValidationError):
+            CustomerService.create_customer(
+                slug='testco',  # Duplicate slug
+                company_name='Another Company',
+                contact_name='Jane Doe',
+                contact_email='jane@another.de',
+                billing_email='billing@another.de',
+                billing_address='Another St 2',
+                billing_city='Munich',
+                billing_postal_code='80331',
+                plan=self.plan,
+                user_seats=3,
+                instance_seats=1,
+                stripe_subscription_id='sub_second',
+            )
+
+        # Verify only one customer exists
+        self.assertEqual(Customer.objects.filter(slug='testco').count(), 1)
+
+        # Verify only one subscription exists
+        self.assertEqual(Subscription.objects.all().count(), 1)
+
+        # Verify only one instance exists
+        self.assertEqual(Instance.objects.all().count(), 1)
+
+        # Verify only one audit log exists
+        self.assertEqual(AuditLog.objects.filter(action='customer.created').count(), 1)
+
+    def test_create_customer_rollback_on_duplicate_stripe_subscription_id(self):
+        """Test rollback when Stripe subscription ID already exists."""
+        # Create first customer
+        CustomerService.create_customer(
+            slug='first',
+            company_name='First Company',
+            contact_name='John Doe',
+            contact_email='john@first.de',
+            billing_email='billing@first.de',
+            billing_address='First St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_duplicate',
+        )
+
+        # Try to create customer with duplicate Stripe subscription ID
+        with self.assertRaises(ValidationError):
+            CustomerService.create_customer(
+                slug='second',
+                company_name='Second Company',
+                contact_name='Jane Doe',
+                contact_email='jane@second.de',
+                billing_email='billing@second.de',
+                billing_address='Second St 2',
+                billing_city='Munich',
+                billing_postal_code='80331',
+                plan=self.plan,
+                user_seats=3,
+                instance_seats=1,
+                stripe_subscription_id='sub_duplicate',  # Duplicate
+            )
+
+        # Verify only first customer exists
+        self.assertTrue(Customer.objects.filter(slug='first').exists())
+        self.assertFalse(Customer.objects.filter(slug='second').exists())
+
+        # Verify rollback - no second customer was created
+        self.assertEqual(Customer.objects.all().count(), 1)
+        self.assertEqual(Subscription.objects.all().count(), 1)
+        self.assertEqual(Instance.objects.all().count(), 1)
+
+    def test_create_customer_rollback_on_instance_creation_failure(self):
+        """Test rollback when instance creation fails."""
+        # Mock Instance.objects.create_master to raise an exception
+        with patch.object(Instance.objects, 'create_master', side_effect=Exception('Instance creation failed')):
+            with self.assertRaises(Exception) as context:
+                CustomerService.create_customer(
+                    slug='failco',
+                    company_name='Fail Company',
+                    contact_name='John Doe',
+                    contact_email='john@failco.de',
+                    billing_email='billing@failco.de',
+                    billing_address='Fail St 1',
+                    billing_city='Berlin',
+                    billing_postal_code='10115',
+                    plan=self.plan,
+                    user_seats=5,
+                    instance_seats=1,
+                    stripe_subscription_id='sub_fail',
+                )
+            self.assertIn('Instance creation failed', str(context.exception))
+
+        # Verify complete rollback - no customer, subscription, or instance created
+        self.assertFalse(Customer.objects.filter(slug='failco').exists())
+        self.assertFalse(Subscription.objects.filter(stripe_subscription_id='sub_fail').exists())
+        self.assertFalse(Instance.objects.filter(slug='failco').exists())
+
+        # Verify no audit log was created
+        self.assertEqual(AuditLog.objects.filter(action='customer.created').count(), 0)
+
+    def test_create_customer_rollback_on_audit_log_failure(self):
+        """Test rollback when audit log creation fails."""
+        # Mock AuditLog.objects.create to raise an exception
+        with patch.object(AuditLog.objects, 'create', side_effect=Exception('Audit log failed')):
+            with self.assertRaises(Exception) as context:
+                CustomerService.create_customer(
+                    slug='auditfail',
+                    company_name='Audit Fail Company',
+                    contact_name='John Doe',
+                    contact_email='john@auditfail.de',
+                    billing_email='billing@auditfail.de',
+                    billing_address='Audit St 1',
+                    billing_city='Berlin',
+                    billing_postal_code='10115',
+                    plan=self.plan,
+                    user_seats=5,
+                    instance_seats=1,
+                    stripe_subscription_id='sub_auditfail',
+                )
+            self.assertIn('Audit log failed', str(context.exception))
+
+        # Verify complete rollback - no customer, subscription, or instance created
+        self.assertFalse(Customer.objects.filter(slug='auditfail').exists())
+        self.assertFalse(Subscription.objects.filter(stripe_subscription_id='sub_auditfail').exists())
+        self.assertFalse(Instance.objects.filter(slug='auditfail').exists())
+
+    def test_create_customer_invalid_slug(self):
+        """Test that invalid slug is rejected."""
+        with self.assertRaises(ValidationError):
+            customer, subscription, instance = CustomerService.create_customer(
+                slug='INVALID',  # Uppercase not allowed
+                company_name='Invalid Company',
+                contact_name='John Doe',
+                contact_email='john@invalid.de',
+                billing_email='billing@invalid.de',
+                plan=self.plan,
+                user_seats=5,
+                instance_seats=1,
+                stripe_subscription_id='sub_invalid',
+            )
+
+    def test_create_customer_with_optional_fields(self):
+        """Test customer creation with optional fields."""
+        customer, subscription, instance = CustomerService.create_customer(
+            slug='optional',
+            company_name='Optional Fields Company',
+            contact_name='John Doe',
+            contact_email='john@optional.de',
+            billing_email='billing@optional.de',
+            plan=self.plan,
+            user_seats=10,
+            instance_seats=2,
+            stripe_subscription_id='sub_optional',
+            ai_addon=True,
+            vat_id='DE123456789',
+            contact_phone='+49 123 456789',
+            stripe_customer_id='cus_123',
+            notes='Test customer with optional fields',
+            billing_address='Optional Street 456',
+            billing_city='Munich',
+            billing_postal_code='80331',
+            billing_country='DE',
+        )
+
+        # Verify optional fields were set
+        self.assertEqual(customer.vat_id, 'DE123456789')
+        self.assertEqual(customer.contact_phone, '+49 123 456789')
+        self.assertEqual(customer.stripe_customer_id, 'cus_123')
+        self.assertEqual(customer.notes, 'Test customer with optional fields')
+        self.assertEqual(customer.billing_address, 'Optional Street 456')
+        self.assertEqual(customer.billing_city, 'Munich')
+
+    def test_create_customer_returns_tuple(self):
+        """Test that create_customer returns a tuple of (Customer, Subscription, Instance)."""
+        result = CustomerService.create_customer(
+            slug='tuple',
+            company_name='Tuple Test Company',
+            contact_name='John Doe',
+            contact_email='john@tuple.de',
+            billing_email='billing@tuple.de',
+            billing_address='Tuple St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_tuple',
+        )
+
+        # Verify return type
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 3)
+
+        customer, subscription, instance = result
+        self.assertIsInstance(customer, Customer)
+        self.assertIsInstance(subscription, Subscription)
+        self.assertIsInstance(instance, Instance)
+
+    def test_customer_master_instance_after_creation(self):
+        """Test that customer.master_instance property works after creation."""
+        customer, subscription, instance = CustomerService.create_customer(
+            slug='master',
+            company_name='Master Test Company',
+            contact_name='John Doe',
+            contact_email='john@master.de',
+            billing_email='billing@master.de',
+            billing_address='Master St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_master',
+        )
+
+        # Test that customer.master_instance returns the created instance
+        master = customer.master_instance
+        self.assertIsNotNone(master)
+        self.assertEqual(master.id, instance.id)
+        self.assertTrue(master.is_master)
+
+    def test_customer_active_subscription_after_creation(self):
+        """Test that customer.active_subscription property works after creation."""
+        customer, subscription, instance = CustomerService.create_customer(
+            slug='active',
+            company_name='Active Test Company',
+            contact_name='John Doe',
+            contact_email='john@active.de',
+            billing_email='billing@active.de',
+            billing_address='Active St 1',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            plan=self.plan,
+            user_seats=5,
+            instance_seats=1,
+            stripe_subscription_id='sub_active',
+        )
+
+        # Test that customer.active_subscription returns the created subscription
+        active_sub = customer.active_subscription
+        self.assertIsNotNone(active_sub)
+        self.assertEqual(active_sub.id, subscription.id)
+        self.assertTrue(active_sub.is_active)
 
