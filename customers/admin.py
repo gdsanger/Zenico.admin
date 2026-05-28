@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Plan, Customer
+from .models import Plan, Customer, Subscription
 
 
 @admin.register(Plan)
@@ -101,3 +101,56 @@ class CustomerAdmin(admin.ModelAdmin):
         if obj:  # Editing existing object
             readonly.append('slug')
         return readonly
+
+
+@admin.register(Subscription)
+class SubscriptionAdmin(admin.ModelAdmin):
+    """Admin interface for Subscription model."""
+
+    list_display = [
+        'customer',
+        'plan',
+        'stripe_status',
+        'user_seats_total',
+        'instance_seats_total',
+        'ai_addon_active',
+        'current_period_end',
+        'created_at',
+    ]
+    list_filter = ['stripe_status', 'ai_addon_active', 'created_at']
+    search_fields = [
+        'customer__company_name',
+        'customer__slug',
+        'stripe_subscription_id',
+        'plan__display_name'
+    ]
+    readonly_fields = [
+        'id',
+        'created_at',
+        'updated_at',
+    ]
+
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ['id', 'customer', 'plan', 'stripe_subscription_id', 'stripe_status']
+        }),
+        ('Seat Allocation', {
+            'fields': [
+                'user_seats_total',
+                'instance_seats_total',
+                'ai_addon_active',
+            ]
+        }),
+        ('Billing Period', {
+            'fields': [
+                'current_period_start',
+                'current_period_end',
+                'trial_end',
+                'cancelled_at',
+            ]
+        }),
+        ('Timestamps', {
+            'fields': ['created_at', 'updated_at'],
+            'classes': ['collapse'],
+        }),
+    ]
