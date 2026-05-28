@@ -40,10 +40,15 @@ from crm.views import (
 from newsletter.views import (
     SubscriberListView,
     CampaignListView,
+    CampaignCreateView,
     CampaignEditView,
     AutomationListView,
     create_subscriber,
     deactivate_subscriber,
+    campaign_preview,
+    campaign_test,
+    campaign_schedule,
+    campaign_send,
 )
 
 urlpatterns = [
@@ -94,6 +99,11 @@ urlpatterns = [
     path('newsletter/subscribers/create/', create_subscriber, name='subscriber_create'),
     path('newsletter/subscribers/<uuid:subscriber_id>/deactivate/', deactivate_subscriber, name='subscriber_deactivate'),
     path('newsletter/campaigns/', CampaignListView.as_view(), name='campaign_list'),
+    path('newsletter/campaigns/create/', CampaignCreateView.as_view(), name='campaign_create'),
     path('newsletter/campaigns/<uuid:campaign_id>/edit/', CampaignEditView.as_view(), name='campaign_edit'),
+    path('newsletter/campaigns/<uuid:campaign_id>/preview/', campaign_preview, name='campaign_preview'),
+    path('newsletter/campaigns/<uuid:campaign_id>/test/', campaign_test, name='campaign_test'),
+    path('newsletter/campaigns/<uuid:campaign_id>/schedule/', campaign_schedule, name='campaign_schedule'),
+    path('newsletter/campaigns/<uuid:campaign_id>/send/', campaign_send, name='campaign_send'),
     path('newsletter/automations/', AutomationListView.as_view(), name='automation_list'),
 ]

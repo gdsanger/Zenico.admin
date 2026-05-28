@@ -6,14 +6,202 @@
 {% block content %}
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <h1>Kampagne bearbeiten</h1>
-        <a href="{% url 'ui:campaign_list' %}" class="btn btn-secondary">Zurück</a>
+        <div>
+            <a href="{% url 'ui:campaign_list' %}" class="text-decoration-none">
+                <i class="ti ti-arrow-left"></i> Kampagnen
+            </a>
+            <h1 class="mt-2">{% if object.pk %}{{ object.name }}{% else %}Neue Kampagne{% endif %}</h1>
+        </div>
+        <div>
+            {% if object.status == 'draft' %}
+            <button type="submit" form="campaign-form" class="btn btn-primary">Speichern</button>
+            {% endif %}
+        </div>
     </div>
 
-    <form method="post">
-        {% csrf_token %}
-        {% bootstrap_form form %}
-        <button type="submit" class="btn btn-primary">Speichern</button>
-    </form>
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Kampagnendetails</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="campaign-form">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label for="id_name" class="form-label">Interner Name <span class="text-danger">*</span></label>
+                            <input type="text" name="name" id="id_name" class="form-control" value="{{ form.name.value|default:'' }}" {% if object.status != 'draft' %}readonly{% endif %} required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_subject" class="form-label">Betreff <span class="text-danger">*</span></label>
+                            <input type="text" name="subject" id="id_subject" class="form-control" value="{{ form.subject.value|default:'' }}" {% if object.status != 'draft' %}readonly{% endif %} required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_preview_text" class="form-label">Vorschautext</label>
+                            <input type="text" name="preview_text" id="id_preview_text" class="form-control" value="{{ form.preview_text.value|default:'' }}" {% if object.status != 'draft' %}readonly{% endif %}>
+                            <div class="form-text">Wird in E-Mail-Clients als Vorschau angezeigt</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_segment" class="form-label">Segment <span class="text-danger">*</span></label>
+                            <select name="segment" id="id_segment" class="form-select" {% if object.status != 'draft' %}disabled{% endif %} required>
+                                <option value="all" {% if form.segment.value == 'all' %}selected{% endif %}>Alle Abonnenten</option>
+                                <option value="leads" {% if form.segment.value == 'leads' %}selected{% endif %}>Leads</option>
+                                <option value="customers" {% if form.segment.value == 'customers' %}selected{% endif %}>Kunden</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_html_body" class="form-label">HTML-Inhalt <span class="text-danger">*</span></label>
+                            <textarea name="html_body" id="id_html_body" class="form-control" rows="15" {% if object.status != 'draft' %}readonly{% endif %} required>{{ form.html_body.value|default:'' }}</textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="id_text_body" class="form-label">Plaintext-Fallback</label>
+                            <textarea name="text_body" id="id_text_body" class="form-control" rows="10" {% if object.status != 'draft' %}readonly{% endif %}>{{ form.text_body.value|default:'' }}</textarea>
+                            <div class="form-text">Fallback für E-Mail-Clients ohne HTML-Unterstützung</div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            {% if object.pk %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Status</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        {% if object.status == 'draft' %}
+                        <span class="badge bg-secondary">Entwurf</span>
+                        {% elif object.status == 'scheduled' %}
+                        <span class="badge bg-info">Geplant</span>
+                        {% elif object.status == 'sending' %}
+                        <span class="badge bg-warning">Wird gesendet</span>
+                        {% elif object.status == 'sent' %}
+                        <span class="badge bg-success">Gesendet</span>
+                        {% elif object.status == 'cancelled' %}
+                        <span class="badge bg-danger">Abgebrochen</span>
+                        {% endif %}
+                    </p>
+                    {% if object.scheduled_at %}
+                    <p class="mb-0"><small class="text-muted">Geplant: {{ object.scheduled_at|date:"d.m.Y H:i" }}</small></p>
+                    {% endif %}
+                    {% if object.sent_at %}
+                    <p class="mb-0"><small class="text-muted">Gesendet: {{ object.sent_at|date:"d.m.Y H:i" }}</small></p>
+                    {% endif %}
+                    {% if object.recipient_count %}
+                    <p class="mb-0"><small class="text-muted">Empfänger: {{ object.recipient_count }}</small></p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Aktionen</h5>
+                </div>
+                <div class="card-body d-grid gap-2">
+                    <a href="{% url 'ui:campaign_preview' object.id %}" class="btn btn-outline-secondary" target="_blank">
+                        <i class="ti ti-eye"></i> Vorschau
+                    </a>
+
+                    {% if object.status == 'draft' %}
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#testMailModal">
+                        <i class="ti ti-mail"></i> Testmail senden
+                    </button>
+
+                    <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                        <i class="ti ti-clock"></i> Planen
+                    </button>
+
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#sendModal">
+                        <i class="ti ti-send"></i> Jetzt senden
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
 </div>
+
+<!-- Test Mail Modal -->
+{% if object.pk and object.status == 'draft' %}
+<div class="modal fade" id="testMailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:campaign_test' object.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Testmail senden</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="test_email" class="form-label">E-Mail-Adresse</label>
+                        <input type="email" name="test_email" id="test_email" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Schedule Modal -->
+<div class="modal fade" id="scheduleModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:campaign_schedule' object.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Kampagne planen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="scheduled_at" class="form-label">Sendezeitpunkt</label>
+                        <input type="datetime-local" name="scheduled_at" id="scheduled_at" class="form-control" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Planen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Send Modal -->
+<div class="modal fade" id="sendModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:campaign_send' object.id %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Kampagne jetzt senden</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Möchten Sie diese Kampagne jetzt an alle Empfänger senden?</p>
+                    <p class="text-muted">Dies kann nicht rückgängig gemacht werden.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Jetzt senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
