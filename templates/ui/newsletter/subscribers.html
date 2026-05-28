@@ -4,29 +4,48 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <h1 class="mb-4">Newsletter-Abonnenten</h1>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Abonnenten</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createSubscriberModal">
+            <i class="ti ti-plus"></i> Manuell hinzufügen
+        </button>
+    </div>
 
     <!-- Filters -->
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
-            <a class="nav-link {% if not current_status %}active{% endif %}" href="?">Alle</a>
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="?">
+                Alle ({{ status_counts.all }})
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if current_status == 'active' %}active{% endif %}" href="?status=active">Aktiv</a>
+            <a class="nav-link {% if current_status == 'active' %}active{% endif %}" href="?status=active">
+                Aktiv ({{ status_counts.active }})
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if current_status == 'unsubscribed' %}active{% endif %}" href="?status=unsubscribed">Abgemeldet</a>
+            <a class="nav-link {% if current_status == 'unsubscribed' %}active{% endif %}" href="?status=unsubscribed">
+                Abgemeldet ({{ status_counts.unsubscribed }})
+            </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link {% if current_status == 'bounced' %}active{% endif %}" href="?status=bounced">Bounced</a>
+            <a class="nav-link {% if current_status == 'bounced' %}active{% endif %}" href="?status=bounced">
+                Bounced ({{ status_counts.bounced }})
+            </a>
         </li>
     </ul>
 
     <!-- Search -->
     <form method="get" class="mb-4">
         <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="Nach E-Mail oder Name suchen..." value="{{ search_query }}">
-            <button class="btn btn-outline-secondary" type="submit">Suchen</button>
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="E-Mail oder Name suchen..."
+                   value="{{ search_query }}"
+                   hx-get="{% url 'ui:subscriber_list' %}"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#subscriber-rows"
+                   hx-include="[name='status']">
+            <input type="hidden" name="status" value="{{ current_status }}">
         </div>
     </form>
 
@@ -37,41 +56,14 @@
                 <tr>
                     <th>E-Mail</th>
                     <th>Name</th>
-                    <th>Status</th>
                     <th>Quelle</th>
                     <th>Bestätigt</th>
-                    <th>Eingeschrieben</th>
+                    <th>Status</th>
+                    <th>Aktionen</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for subscriber in subscribers %}
-                <tr>
-                    <td>{{ subscriber.email }}</td>
-                    <td>{{ subscriber.full_name|default:"-" }}</td>
-                    <td>
-                        {% if subscriber.status == 'active' %}
-                        <span class="badge bg-success">Aktiv</span>
-                        {% elif subscriber.status == 'unsubscribed' %}
-                        <span class="badge bg-secondary">Abgemeldet</span>
-                        {% elif subscriber.status == 'bounced' %}
-                        <span class="badge bg-danger">Bounced</span>
-                        {% endif %}
-                    </td>
-                    <td>{{ subscriber.get_source_display }}</td>
-                    <td>
-                        {% if subscriber.confirmed_at %}
-                        <i class="bi bi-check-circle text-success"></i> {{ subscriber.confirmed_at|date:"d.m.Y" }}
-                        {% else %}
-                        <i class="bi bi-x-circle text-muted"></i>
-                        {% endif %}
-                    </td>
-                    <td>{{ subscriber.subscribed_at|date:"d.m.Y" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="6" class="text-center text-muted">Keine Abonnenten gefunden</td>
-                </tr>
-                {% endfor %}
+            <tbody id="subscriber-rows">
+                {% include "ui/newsletter/partials/subscriber_rows.html" %}
             </tbody>
         </table>
     </div>
@@ -90,5 +82,38 @@
         </ul>
     </nav>
     {% endif %}
+</div>
+
+<!-- Create Subscriber Modal -->
+<div class="modal fade" id="createSubscriberModal" tabindex="-1" aria-labelledby="createSubscriberModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:subscriber_create' %}" hx-target="#subscriber-rows" hx-swap="afterbegin">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createSubscriberModalLabel">Abonnent manuell hinzufügen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail <span class="text-danger">*</span></label>
+                        <input type="email" name="email" id="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">Vorname (optional)</label>
+                        <input type="text" name="first_name" id="first_name" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Nachname (optional)</label>
+                        <input type="text" name="last_name" id="last_name" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

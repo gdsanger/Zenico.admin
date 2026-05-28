@@ -1,0 +1,28 @@
+{% for contact in contacts %}
+<tr onclick="window.location='{% url 'ui:contact_detail' contact.id %}';" style="cursor: pointer;">
+    <td>{{ contact.full_name }}</td>
+    <td>{{ contact.company|default:"—" }}</td>
+    <td>
+        {% if contact.source == 'web_contact' %}
+        <span class="badge bg-info">Web</span>
+        {% else %}
+        <span class="badge bg-secondary">Manuell</span>
+        {% endif %}
+    </td>
+    <td>
+        {% include "ui/crm/partials/status_badge.html" %}
+    </td>
+    <td>
+        {% if contact.newsletter_consent %}
+        <i class="ti ti-check text-success"></i>
+        {% else %}
+        —
+        {% endif %}
+    </td>
+    <td>{{ contact.created_at|date:"d.m.Y" }}</td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center text-muted">Keine Kontakte gefunden</td>
+</tr>
+{% endfor %}

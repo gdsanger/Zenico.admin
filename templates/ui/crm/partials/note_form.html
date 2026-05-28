@@ -1,0 +1,8 @@
+<form hx-post="{% url 'ui:contact_add_note' contact.id %}" hx-target="#notes-list" hx-swap="afterbegin" hx-on::after-request="this.reset()">
+    {% csrf_token %}
+    <div class="mb-3">
+        <textarea name="note" class="form-control" rows="3" placeholder="Notiz hinzufügen..." required></textarea>
+    </div>
+    <button type="submit" class="btn btn-primary btn-sm">Speichern</button>
+    <button type="button" class="btn btn-secondary btn-sm" hx-get="#" hx-target="#note-form-area" hx-swap="innerHTML">Abbrechen</button>
+</form>

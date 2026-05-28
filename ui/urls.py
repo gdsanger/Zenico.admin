@@ -33,12 +33,17 @@ from crm.views import (
     add_contact_note,
     update_contact_status,
     ConvertToCustomerView,
+    create_contact,
+    assign_contact,
+    get_note_form,
 )
 from newsletter.views import (
     SubscriberListView,
     CampaignListView,
     CampaignEditView,
     AutomationListView,
+    create_subscriber,
+    deactivate_subscriber,
 )
 
 urlpatterns = [
@@ -76,13 +81,18 @@ urlpatterns = [
 
     # CRM
     path('crm/contacts/', ContactListView.as_view(), name='contact_list'),
+    path('crm/contacts/create/', create_contact, name='contact_create'),
     path('crm/contacts/<uuid:contact_id>/', ContactDetailView.as_view(), name='contact_detail'),
     path('crm/contacts/<uuid:contact_id>/add-note/', add_contact_note, name='contact_add_note'),
     path('crm/contacts/<uuid:contact_id>/update-status/', update_contact_status, name='contact_update_status'),
+    path('crm/contacts/<uuid:contact_id>/assign/', assign_contact, name='contact_assign'),
+    path('crm/contacts/<uuid:contact_id>/note-form/', get_note_form, name='contact_note_form'),
     path('crm/contacts/<uuid:contact_id>/convert/', ConvertToCustomerView.as_view(), name='contact_convert'),
 
     # Newsletter
     path('newsletter/subscribers/', SubscriberListView.as_view(), name='subscriber_list'),
+    path('newsletter/subscribers/create/', create_subscriber, name='subscriber_create'),
+    path('newsletter/subscribers/<uuid:subscriber_id>/deactivate/', deactivate_subscriber, name='subscriber_deactivate'),
     path('newsletter/campaigns/', CampaignListView.as_view(), name='campaign_list'),
     path('newsletter/campaigns/<uuid:campaign_id>/edit/', CampaignEditView.as_view(), name='campaign_edit'),
     path('newsletter/automations/', AutomationListView.as_view(), name='automation_list'),

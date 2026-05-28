@@ -42,21 +42,36 @@ class SubscriberListView(ListView):
             queryset = queryset.filter(status=status)
 
         # Search
-        search = self.request.GET.get('search', '')
-        if search:
+        q = self.request.GET.get('q', '')
+        if q:
             queryset = queryset.filter(
-                Q(email__icontains=search) |
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search)
+                Q(email__icontains=q) |
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q)
             )
 
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
+        context['search_query'] = self.request.GET.get('q', '')
         context['current_status'] = self.request.GET.get('status', '')
+
+        # Count by status for filter tabs
+        context['status_counts'] = {
+            'all': Subscriber.objects.count(),
+            'active': Subscriber.objects.filter(status='active').count(),
+            'unsubscribed': Subscriber.objects.filter(status='unsubscribed').count(),
+            'bounced': Subscriber.objects.filter(status='bounced').count(),
+        }
+
         return context
+
+    def render_to_response(self, context, **response_kwargs):
+        # If HTMX request, return only the rows partial
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, 'ui/newsletter/partials/subscriber_rows.html', context)
+        return super().render_to_response(context, **response_kwargs)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -101,4 +116,75 @@ class AutomationListView(ListView):
 
     def get_queryset(self):
         return AutomationSequence.objects.prefetch_related('steps').order_by('name')
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def create_subscriber(request):
+    """
+    Create a subscriber manually via HTMX.
+    """
+    email = request.POST.get('email', '').strip()
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+
+    if not email:
+        return JsonResponse({'error': 'Email is required'}, status=400)
+
+    # Check if subscriber already exists
+    if Subscriber.objects.filter(email=email).exists():
+        return JsonResponse({'error': 'Subscriber with this email already exists'}, status=400)
+
+    # Create subscriber
+    subscriber = Subscriber.objects.create(
+        email=email,
+        first_name=first_name,
+        last_name=last_name,
+        source='manual',
+        status='active',
+        confirmed_at=timezone.now(),  # Manual subscribers are auto-confirmed
+    )
+
+    # Log audit
+    AuditService.log(
+        action=AuditAction.SUBSCRIBER_CREATED,
+        resource_type='Subscriber',
+        resource_id=str(subscriber.id),
+        actor_email=request.user.email,
+        after={
+            'email': subscriber.email,
+            'source': 'manual',
+        },
+        note=f'Subscriber {subscriber.email} manually created'
+    )
+
+    # Return rendered row HTML
+    return render(request, 'ui/newsletter/partials/subscriber_rows.html', {'subscribers': [subscriber]})
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def deactivate_subscriber(request, subscriber_id):
+    """
+    Deactivate (unsubscribe) a subscriber via HTMX.
+    """
+    subscriber = get_object_or_404(Subscriber, id=subscriber_id)
+
+    subscriber.status = 'unsubscribed'
+    subscriber.unsubscribed_at = timezone.now()
+    subscriber.save()
+
+    # Log audit
+    AuditService.log(
+        action=AuditAction.SUBSCRIBER_UNSUBSCRIBED,
+        resource_type='Subscriber',
+        resource_id=str(subscriber.id),
+        actor_email=request.user.email,
+        note=f'Subscriber {subscriber.email} deactivated by admin'
+    )
+
+    # Return updated row
+    return render(request, 'ui/newsletter/partials/subscriber_rows.html', {'subscribers': [subscriber]})
 
