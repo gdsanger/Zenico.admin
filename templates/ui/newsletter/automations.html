@@ -1,0 +1,50 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Automatisierungen | Newsletter{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Automation Sequenzen</h1>
+
+    <div class="row">
+        {% for sequence in sequences %}
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">{{ sequence.name }}</h5>
+                    {% if sequence.is_active %}
+                    <span class="badge bg-success">Aktiv</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inaktiv</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    <p><strong>Trigger:</strong> {{ sequence.get_trigger_display }}</p>
+                    <p><strong>Schritte:</strong> {{ sequence.steps.count }}</p>
+
+                    {% if sequence.steps.exists %}
+                    <div class="mt-3">
+                        <h6>Sequenz-Schritte:</h6>
+                        <ol class="list-group list-group-numbered">
+                            {% for step in sequence.steps.all %}
+                            <li class="list-group-item d-flex justify-content-between align-items-start">
+                                <div class="ms-2 me-auto">
+                                    <div class="fw-bold">{{ step.subject }}</div>
+                                    <small class="text-muted">Verzögerung: {{ step.delay_days }} Tag(e)</small>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ol>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-12">
+            <p class="text-center text-muted">Keine Automatisierungssequenzen gefunden</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

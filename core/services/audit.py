@@ -52,6 +52,22 @@ class AuditAction:
     STRIPE_WEBHOOK_PROCESSED = "stripe.webhook_processed"
     STRIPE_WEBHOOK_FAILED = "stripe.webhook_failed"
 
+    # CRM
+    CONTACT_CREATED = "contact.created"
+    CONTACT_UPDATED = "contact.updated"
+    CONTACT_CONVERTED = "contact.converted"
+    CONTACT_NOTE_ADDED = "contact.note_added"
+
+    # Newsletter
+    SUBSCRIBER_CREATED = "subscriber.created"
+    SUBSCRIBER_CONFIRMED = "subscriber.confirmed"
+    SUBSCRIBER_UNSUBSCRIBED = "subscriber.unsubscribed"
+    CAMPAIGN_CREATED = "campaign.created"
+    CAMPAIGN_SENT = "campaign.sent"
+    SEQUENCE_ENROLLED = "sequence.enrolled"
+    SEQUENCE_COMPLETED = "sequence.completed"
+
+
 
 class AuditService:
     """

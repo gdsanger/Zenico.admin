@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+            border-radius: 8px 8px 0 0;
+        }
+        .content {
+            background: #f9fafb;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+            border-top: none;
+        }
+        .footer {
+            background: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #6b7280;
+            border-radius: 0 0 8px 8px;
+        }
+        h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .success-box {
+            background: #d1fae5;
+            padding: 20px;
+            border-left: 4px solid #10b981;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>✓ Newsletter-Anmeldung erfolgreich!</h1>
+    </div>
+    <div class="content">
+        <div class="success-box">
+            <strong>🎉 Herzlich willkommen!</strong><br>
+            Ihre Newsletter-Anmeldung wurde erfolgreich bestätigt.
+        </div>
+
+        <p>Hallo{% if first_name %} {{ first_name }}{% endif %},</p>
+
+        <p>vielen Dank für die Bestätigung! Sie sind jetzt für unseren Newsletter angemeldet und erhalten ab sofort regelmäßig Neuigkeiten, Updates und hilfreiche Tipps rund um Zenico direkt in Ihr Postfach.</p>
+
+        <p><strong>Was Sie erwarten können:</strong></p>
+        <ul>
+            <li>Produktneuheiten und Feature-Updates</li>
+            <li>Best Practices für Microsoft 365 Verwaltung</li>
+            <li>Exklusive Einblicke und Tipps</li>
+            <li>Wichtige Ankündigungen</li>
+        </ul>
+
+        <p>Entdecken Sie Zenico auf unserer Website:</p>
+
+        <a href="https://zenico.app" class="button">Zu Zenico.app</a>
+
+        <p>Wir freuen uns, Sie als Teil unserer Community begrüßen zu dürfen!</p>
+
+        <p>Mit freundlichen Grüßen<br>Ihr Zenico Team</p>
+    </div>
+    <div class="footer">
+        <p>Zenico – Ihre Microsoft 365 Verwaltungsplattform<br>
+        <a href="https://zenico.app" style="color: #10b981;">zenico.app</a></p>
+        <p><small>Sie können sich jederzeit vom Newsletter abmelden:<br>
+        <a href="{{ unsubscribe_url }}" style="color: #6b7280;">Abmelden</a></small></p>
+    </div>
+</body>
+</html>

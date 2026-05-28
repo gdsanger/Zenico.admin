@@ -1,0 +1,94 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Abonnenten | Newsletter{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="mb-4">Newsletter-Abonnenten</h1>
+
+    <!-- Filters -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="?">Alle</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'active' %}active{% endif %}" href="?status=active">Aktiv</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'unsubscribed' %}active{% endif %}" href="?status=unsubscribed">Abgemeldet</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'bounced' %}active{% endif %}" href="?status=bounced">Bounced</a>
+        </li>
+    </ul>
+
+    <!-- Search -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" placeholder="Nach E-Mail oder Name suchen..." value="{{ search_query }}">
+            <button class="btn btn-outline-secondary" type="submit">Suchen</button>
+        </div>
+    </form>
+
+    <!-- Subscribers Table -->
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>E-Mail</th>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Quelle</th>
+                    <th>Bestätigt</th>
+                    <th>Eingeschrieben</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for subscriber in subscribers %}
+                <tr>
+                    <td>{{ subscriber.email }}</td>
+                    <td>{{ subscriber.full_name|default:"-" }}</td>
+                    <td>
+                        {% if subscriber.status == 'active' %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% elif subscriber.status == 'unsubscribed' %}
+                        <span class="badge bg-secondary">Abgemeldet</span>
+                        {% elif subscriber.status == 'bounced' %}
+                        <span class="badge bg-danger">Bounced</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ subscriber.get_source_display }}</td>
+                    <td>
+                        {% if subscriber.confirmed_at %}
+                        <i class="bi bi-check-circle text-success"></i> {{ subscriber.confirmed_at|date:"d.m.Y" }}
+                        {% else %}
+                        <i class="bi bi-x-circle text-muted"></i>
+                        {% endif %}
+                    </td>
+                    <td>{{ subscriber.subscribed_at|date:"d.m.Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Keine Abonnenten gefunden</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Zurück</a></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">{{ page_obj.number }} von {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Weiter</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
