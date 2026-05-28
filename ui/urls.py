@@ -43,12 +43,18 @@ from newsletter.views import (
     CampaignCreateView,
     CampaignEditView,
     AutomationListView,
+    AutomationDetailView,
+    AutomationCreateView,
     create_subscriber,
     deactivate_subscriber,
     campaign_preview,
     campaign_test,
     campaign_schedule,
     campaign_send,
+    automation_toggle,
+    automation_step_create,
+    automation_step_edit,
+    automation_step_delete,
 )
 
 urlpatterns = [
@@ -106,4 +112,10 @@ urlpatterns = [
     path('newsletter/campaigns/<uuid:campaign_id>/schedule/', campaign_schedule, name='campaign_schedule'),
     path('newsletter/campaigns/<uuid:campaign_id>/send/', campaign_send, name='campaign_send'),
     path('newsletter/automations/', AutomationListView.as_view(), name='automation_list'),
+    path('newsletter/automations/create/', AutomationCreateView.as_view(), name='automation_create'),
+    path('newsletter/automations/<uuid:sequence_id>/', AutomationDetailView.as_view(), name='automation_detail'),
+    path('newsletter/automations/<uuid:sequence_id>/toggle/', automation_toggle, name='automation_toggle'),
+    path('newsletter/automations/<uuid:sequence_id>/steps/create/', automation_step_create, name='automation_step_create'),
+    path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/edit/', automation_step_edit, name='automation_step_edit'),
+    path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/delete/', automation_step_delete, name='automation_step_delete'),
 ]

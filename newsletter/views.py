@@ -124,7 +124,7 @@ class CampaignEditView(UpdateView):
 
 
 @method_decorator(login_required, name='dispatch')
-@method_decorator(role_required('superadmin', 'support'), name='dispatch')
+@method_decorator(role_required('superadmin'), name='dispatch')
 class AutomationListView(ListView):
     """
     Automation sequence list view.
@@ -135,6 +135,37 @@ class AutomationListView(ListView):
 
     def get_queryset(self):
         return AutomationSequence.objects.prefetch_related('steps').order_by('name')
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('superadmin'), name='dispatch')
+class AutomationDetailView(DetailView):
+    """
+    Automation sequence detail view.
+    """
+    model = AutomationSequence
+    template_name = 'ui/newsletter/automation_detail.html'
+    context_object_name = 'sequence'
+    pk_url_kwarg = 'sequence_id'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Steps are already prefetched via related manager
+        return context
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('superadmin'), name='dispatch')
+class AutomationCreateView(CreateView):
+    """
+    Automation sequence create view.
+    """
+    model = AutomationSequence
+    template_name = 'ui/newsletter/automation_edit.html'
+    fields = ['name', 'trigger', 'is_active']
+
+    def get_success_url(self):
+        return f'/newsletter/automations/{self.object.id}/'
 
 
 @login_required
@@ -324,4 +355,137 @@ def campaign_send(request, campaign_id):
 
     messages.success(request, 'Kampagne wird gesendet...')
     return redirect('ui:campaign_list')
+
+
+@login_required
+@role_required('superadmin')
+@require_POST
+def automation_toggle(request, sequence_id):
+    """
+    Toggle automation sequence active status.
+    """
+    sequence = get_object_or_404(AutomationSequence, id=sequence_id)
+
+    sequence.is_active = not sequence.is_active
+    sequence.save()
+
+    # Log audit
+    AuditService.log(
+        action='automation.toggled',
+        resource_type='AutomationSequence',
+        resource_id=str(sequence.id),
+        actor_email=request.user.email,
+        after={'is_active': sequence.is_active},
+        note=f'Automation {sequence.name} {"activated" if sequence.is_active else "deactivated"}'
+    )
+
+    # Return updated toggle HTML for table view
+    from django.http import HttpResponse
+    if sequence.is_active:
+        return HttpResponse('<div class="form-check form-switch" style="display: inline-block;"><input class="form-check-input" type="checkbox" role="switch" checked hx-post="' + request.path + '" hx-target="closest td" hx-swap="innerHTML"></div>')
+    else:
+        return HttpResponse('<div class="form-check form-switch" style="display: inline-block;"><input class="form-check-input" type="checkbox" role="switch" hx-post="' + request.path + '" hx-target="closest td" hx-swap="innerHTML"></div>')
+
+
+@login_required
+@role_required('superadmin')
+@require_POST
+def automation_step_create(request, sequence_id):
+    """
+    Create a new step in an automation sequence.
+    """
+    sequence = get_object_or_404(AutomationSequence, id=sequence_id)
+
+    delay_days = int(request.POST.get('delay_days', 0))
+    subject = request.POST.get('subject', '').strip()
+    preview_text = request.POST.get('preview_text', '').strip()
+    html_body = request.POST.get('html_body', '').strip()
+    text_body = request.POST.get('text_body', '').strip()
+
+    if not subject or not html_body:
+        messages.error(request, 'Betreff und HTML-Inhalt sind erforderlich.')
+        return redirect('ui:automation_detail', sequence_id=sequence.id)
+
+    # Get next order number
+    from django.db.models import Max
+    max_order = sequence.steps.aggregate(Max('order'))['order__max'] or 0
+    next_order = max_order + 1
+
+    # Create step
+    step = SequenceStep.objects.create(
+        sequence=sequence,
+        order=next_order,
+        delay_days=delay_days,
+        subject=subject,
+        preview_text=preview_text,
+        html_body=html_body,
+        text_body=text_body,
+    )
+
+    # Log audit
+    AuditService.log(
+        action='automation.step_created',
+        resource_type='SequenceStep',
+        resource_id=str(step.id),
+        actor_email=request.user.email,
+        note=f'Step {step.order} added to sequence {sequence.name}'
+    )
+
+    messages.success(request, 'Step wurde hinzugefügt.')
+    return redirect('ui:automation_detail', sequence_id=sequence.id)
+
+
+@login_required
+@role_required('superadmin')
+@require_POST
+def automation_step_edit(request, sequence_id, step_id):
+    """
+    Edit an existing step in an automation sequence.
+    """
+    sequence = get_object_or_404(AutomationSequence, id=sequence_id)
+    step = get_object_or_404(SequenceStep, id=step_id, sequence=sequence)
+
+    step.delay_days = int(request.POST.get('delay_days', 0))
+    step.subject = request.POST.get('subject', '').strip()
+    step.preview_text = request.POST.get('preview_text', '').strip()
+    step.html_body = request.POST.get('html_body', '').strip()
+    step.text_body = request.POST.get('text_body', '').strip()
+    step.save()
+
+    # Log audit
+    AuditService.log(
+        action='automation.step_updated',
+        resource_type='SequenceStep',
+        resource_id=str(step.id),
+        actor_email=request.user.email,
+        note=f'Step {step.order} updated in sequence {sequence.name}'
+    )
+
+    messages.success(request, 'Step wurde aktualisiert.')
+    return redirect('ui:automation_detail', sequence_id=sequence.id)
+
+
+@login_required
+@role_required('superadmin')
+def automation_step_delete(request, sequence_id, step_id):
+    """
+    Delete a step from an automation sequence.
+    """
+    sequence = get_object_or_404(AutomationSequence, id=sequence_id)
+    step = get_object_or_404(SequenceStep, id=step_id, sequence=sequence)
+
+    # Log audit before deleting
+    AuditService.log(
+        action='automation.step_deleted',
+        resource_type='SequenceStep',
+        resource_id=str(step.id),
+        actor_email=request.user.email,
+        note=f'Step {step.order} deleted from sequence {sequence.name}'
+    )
+
+    step.delete()
+
+    # Return empty response to remove element
+    from django.http import HttpResponse
+    return HttpResponse('')
 
