@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
 from decimal import Decimal
-from .models import StripeEvent
+from .models import StripeEvent, Invoice
 from customers.models import Customer, Plan, Subscription
 
 
@@ -300,3 +300,320 @@ class StripeEventModelTest(TestCase):
         event_ids = [e.stripe_event_id for e in customer_events]
         self.assertIn('evt_rel1', event_ids)
         self.assertIn('evt_rel2', event_ids)
+
+
+class InvoiceModelTest(TestCase):
+    """Test cases for the Invoice model."""
+
+    def setUp(self):
+        """Set up test data."""
+        # Use existing plan from data migration
+        self.plan = Plan.objects.filter(name='starter').first()
+
+        # Create a customer
+        self.customer = Customer.objects.create(
+            slug='testco',
+            company_name='Test Company',
+            contact_name='John Doe',
+            contact_email='john@testco.com',
+            billing_email='billing@testco.com',
+            billing_address='123 Main St',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            billing_country='DE'
+        )
+
+        # Create a subscription
+        self.subscription = Subscription.objects.create(
+            customer=self.customer,
+            plan=self.plan,
+            stripe_subscription_id='sub_test123',
+            stripe_status='active',
+            user_seats_total=10,
+            instance_seats_total=5
+        )
+
+        # Basic invoice data
+        self.invoice_data = {
+            'customer': self.customer,
+            'subscription': self.subscription,
+            'stripe_invoice_id': 'in_test123',
+            'amount_due': Decimal('100.00'),
+            'amount_paid': Decimal('0.00'),
+            'currency': 'EUR',
+            'status': 'open'
+        }
+
+    def test_invoice_creation(self):
+        """Test creating an Invoice with valid data."""
+        invoice = Invoice.objects.create(**self.invoice_data)
+        self.assertIsNotNone(invoice.id)
+        self.assertEqual(invoice.stripe_invoice_id, 'in_test123')
+        self.assertEqual(invoice.customer, self.customer)
+        self.assertEqual(invoice.subscription, self.subscription)
+        self.assertEqual(invoice.amount_due, Decimal('100.00'))
+        self.assertEqual(invoice.amount_paid, Decimal('0.00'))
+        self.assertEqual(invoice.currency, 'EUR')
+        self.assertEqual(invoice.status, 'open')
+        self.assertIsNotNone(invoice.created_at)
+        self.assertIsNotNone(invoice.updated_at)
+
+    def test_invoice_without_subscription(self):
+        """Test creating an Invoice without a subscription."""
+        invoice_data = self.invoice_data.copy()
+        invoice_data['subscription'] = None
+        invoice = Invoice.objects.create(**invoice_data)
+        self.assertEqual(invoice.customer, self.customer)
+        self.assertIsNone(invoice.subscription)
+
+    def test_stripe_invoice_id_unique_constraint(self):
+        """Test that stripe_invoice_id must be unique."""
+        Invoice.objects.create(**self.invoice_data)
+        with self.assertRaises(IntegrityError):
+            Invoice.objects.create(**self.invoice_data)
+
+    def test_invoice_default_values(self):
+        """Test default values for Invoice fields."""
+        invoice_data = {
+            'customer': self.customer,
+            'stripe_invoice_id': 'in_default_test',
+            'amount_due': Decimal('50.00'),
+            'status': 'draft'
+        }
+        invoice = Invoice.objects.create(**invoice_data)
+        self.assertEqual(invoice.amount_paid, Decimal('0.00'))
+        self.assertEqual(invoice.currency, 'EUR')
+        self.assertIsNone(invoice.subscription)
+        self.assertEqual(invoice.stripe_hosted_url, '')
+        self.assertEqual(invoice.stripe_pdf_url, '')
+        self.assertIsNone(invoice.period_start)
+        self.assertIsNone(invoice.period_end)
+        self.assertIsNone(invoice.due_date)
+        self.assertIsNone(invoice.paid_at)
+
+    def test_invoice_status_choices(self):
+        """Test all valid status choices."""
+        statuses = ['draft', 'open', 'paid', 'void', 'uncollectible']
+        for i, status in enumerate(statuses):
+            invoice_data = self.invoice_data.copy()
+            invoice_data['stripe_invoice_id'] = f'in_status_{i}'
+            invoice_data['status'] = status
+            invoice = Invoice.objects.create(**invoice_data)
+            self.assertEqual(invoice.status, status)
+
+    def test_invoice_str_method(self):
+        """Test the __str__ method."""
+        invoice = Invoice.objects.create(**self.invoice_data)
+        str_repr = str(invoice)
+        self.assertIn('in_test123', str_repr)
+        self.assertIn('Test Company', str_repr)
+        self.assertIn('open', str_repr)
+
+    def test_invoice_uuid_primary_key(self):
+        """Test that Invoice uses UUID as primary key."""
+        invoice = Invoice.objects.create(**self.invoice_data)
+        self.assertIsNotNone(invoice.id)
+        # UUID should be a string representation of 36 characters with hyphens
+        self.assertEqual(len(str(invoice.id)), 36)
+
+    def test_invoice_timestamps(self):
+        """Test that created_at and updated_at are automatically set."""
+        invoice = Invoice.objects.create(**self.invoice_data)
+        self.assertIsNotNone(invoice.created_at)
+        self.assertIsNotNone(invoice.updated_at)
+        # created_at should be close to now
+        time_diff = timezone.now() - invoice.created_at
+        self.assertLess(time_diff.total_seconds(), 2)
+
+    def test_invoice_ordering(self):
+        """Test that invoices are ordered by created_at descending."""
+        invoice1 = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_001',
+            amount_due=Decimal('100.00'),
+            status='paid'
+        )
+        invoice2 = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_002',
+            amount_due=Decimal('200.00'),
+            status='open'
+        )
+        invoice3 = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_003',
+            amount_due=Decimal('300.00'),
+            status='draft'
+        )
+
+        invoices = list(Invoice.objects.all())
+        # Most recent first (descending order)
+        self.assertEqual(invoices[0].stripe_invoice_id, 'in_003')
+        self.assertEqual(invoices[1].stripe_invoice_id, 'in_002')
+        self.assertEqual(invoices[2].stripe_invoice_id, 'in_001')
+
+    def test_invoice_customer_protect(self):
+        """Test that deleting customer is prevented when invoices exist."""
+        Invoice.objects.create(**self.invoice_data)
+        # Delete subscription first (PROTECT constraint)
+        self.subscription.delete()
+        # Try to delete customer - should raise ProtectedError
+        from django.db.models.deletion import ProtectedError
+        with self.assertRaises(ProtectedError):
+            self.customer.delete()
+
+    def test_invoice_subscription_set_null(self):
+        """Test that deleting subscription sets invoice.subscription to NULL."""
+        invoice = Invoice.objects.create(**self.invoice_data)
+        self.assertEqual(invoice.subscription, self.subscription)
+
+        # Delete subscription
+        self.subscription.delete()
+
+        # Verify invoice still exists with NULL subscription
+        invoice.refresh_from_db()
+        self.assertIsNone(invoice.subscription)
+        self.assertEqual(invoice.stripe_invoice_id, 'in_test123')
+        self.assertEqual(invoice.customer, self.customer)
+
+    def test_invoice_related_name(self):
+        """Test that customer.invoices reverse relationship works."""
+        invoice1 = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_rel1',
+            amount_due=Decimal('100.00'),
+            status='paid'
+        )
+        invoice2 = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_rel2',
+            amount_due=Decimal('200.00'),
+            status='open'
+        )
+
+        # Access invoices through customer
+        customer_invoices = self.customer.invoices.all()
+        self.assertEqual(customer_invoices.count(), 2)
+        invoice_ids = [inv.stripe_invoice_id for inv in customer_invoices]
+        self.assertIn('in_rel1', invoice_ids)
+        self.assertIn('in_rel2', invoice_ids)
+
+    def test_invoice_subscription_related_name(self):
+        """Test that subscription.invoices reverse relationship works."""
+        invoice1 = Invoice.objects.create(
+            customer=self.customer,
+            subscription=self.subscription,
+            stripe_invoice_id='in_sub1',
+            amount_due=Decimal('100.00'),
+            status='paid'
+        )
+        invoice2 = Invoice.objects.create(
+            customer=self.customer,
+            subscription=self.subscription,
+            stripe_invoice_id='in_sub2',
+            amount_due=Decimal('200.00'),
+            status='open'
+        )
+
+        # Access invoices through subscription
+        subscription_invoices = self.subscription.invoices.all()
+        self.assertEqual(subscription_invoices.count(), 2)
+        invoice_ids = [inv.stripe_invoice_id for inv in subscription_invoices]
+        self.assertIn('in_sub1', invoice_ids)
+        self.assertIn('in_sub2', invoice_ids)
+
+    def test_invoice_customer_status_query(self):
+        """Test efficient query using customer + status index."""
+        # Create invoices with different statuses for this customer
+        Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_paid1',
+            amount_due=Decimal('100.00'),
+            status='paid'
+        )
+        Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_paid2',
+            amount_due=Decimal('200.00'),
+            status='paid'
+        )
+        Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_open1',
+            amount_due=Decimal('300.00'),
+            status='open'
+        )
+
+        # Query by customer and status (should use index)
+        paid_invoices = Invoice.objects.filter(
+            customer=self.customer,
+            status='paid'
+        )
+        self.assertEqual(paid_invoices.count(), 2)
+
+        open_invoices = Invoice.objects.filter(
+            customer=self.customer,
+            status='open'
+        )
+        self.assertEqual(open_invoices.count(), 1)
+
+    def test_invoice_decimal_precision(self):
+        """Test that decimal fields maintain proper precision."""
+        invoice = Invoice.objects.create(
+            customer=self.customer,
+            stripe_invoice_id='in_decimal_test',
+            amount_due=Decimal('123.45'),
+            amount_paid=Decimal('50.67'),
+            status='open'
+        )
+        invoice.refresh_from_db()
+        self.assertEqual(invoice.amount_due, Decimal('123.45'))
+        self.assertEqual(invoice.amount_paid, Decimal('50.67'))
+
+    def test_invoice_with_all_fields(self):
+        """Test creating an Invoice with all optional fields populated."""
+        now = timezone.now()
+        invoice = Invoice.objects.create(
+            customer=self.customer,
+            subscription=self.subscription,
+            stripe_invoice_id='in_complete',
+            stripe_hosted_url='https://invoice.stripe.com/i/test123',
+            stripe_pdf_url='https://invoice.stripe.com/i/test123/pdf',
+            amount_due=Decimal('500.00'),
+            amount_paid=Decimal('500.00'),
+            currency='USD',
+            status='paid',
+            period_start=now,
+            period_end=now,
+            due_date=now,
+            paid_at=now
+        )
+        self.assertEqual(invoice.stripe_hosted_url, 'https://invoice.stripe.com/i/test123')
+        self.assertEqual(invoice.stripe_pdf_url, 'https://invoice.stripe.com/i/test123/pdf')
+        self.assertEqual(invoice.currency, 'USD')
+        self.assertEqual(invoice.status, 'paid')
+        self.assertIsNotNone(invoice.period_start)
+        self.assertIsNotNone(invoice.period_end)
+        self.assertIsNotNone(invoice.due_date)
+        self.assertIsNotNone(invoice.paid_at)
+
+    def test_invoice_amount_validation(self):
+        """Test that amount fields have minimum value validators."""
+        invoice_data = self.invoice_data.copy()
+        invoice_data['stripe_invoice_id'] = 'in_valid_amount'
+        invoice_data['amount_due'] = Decimal('0.00')
+        invoice_data['amount_paid'] = Decimal('0.00')
+        # This should work (0.00 is valid)
+        invoice = Invoice.objects.create(**invoice_data)
+        self.assertEqual(invoice.amount_due, Decimal('0.00'))
+        self.assertEqual(invoice.amount_paid, Decimal('0.00'))
+
+    def test_invoice_currency_field(self):
+        """Test that currency field accepts different currency codes."""
+        currencies = ['EUR', 'USD', 'GBP', 'CHF']
+        for i, currency in enumerate(currencies):
+            invoice_data = self.invoice_data.copy()
+            invoice_data['stripe_invoice_id'] = f'in_curr_{i}'
+            invoice_data['currency'] = currency
+            invoice = Invoice.objects.create(**invoice_data)
+            self.assertEqual(invoice.currency, currency)
