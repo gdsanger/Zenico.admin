@@ -20,7 +20,7 @@
                 <ul class="dropdown-menu dropdown-menu-end">
                     {% if customer.status == 'active' %}
                     <li>
-                        <form method="post" action="{% url 'customer_suspend' customer.slug %}">
+                        <form method="post" action="{% url 'ui:customer_suspend' customer.slug %}">
                             {% csrf_token %}
                             <button type="submit" class="dropdown-item text-warning" data-confirm="Möchten Sie diesen Kunden wirklich sperren?">
                                 <i class="ti ti-lock"></i> Kunden sperren
@@ -29,7 +29,7 @@
                     </li>
                     {% elif customer.status == 'suspended' %}
                     <li>
-                        <form method="post" action="{% url 'customer_reactivate' customer.slug %}">
+                        <form method="post" action="{% url 'ui:customer_reactivate' customer.slug %}">
                             {% csrf_token %}
                             <button type="submit" class="dropdown-item text-success">
                                 <i class="ti ti-lock-open"></i> Kunden reaktivieren
@@ -156,7 +156,7 @@
                     <td>{{ instance.user_seats }}</td>
                     <td>{{ instance.version|default:"-" }}</td>
                     <td>
-                        <a href="{% url 'instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary">
+                        <a href="{% url 'ui:instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary">
                             <i class="ti ti-eye"></i>
                         </a>
                     </td>
@@ -177,7 +177,7 @@
 <div class="table-card">
     <div class="table-card-header">
         <h3 class="table-card-title">Aktivitäten</h3>
-        <a href="{% url 'audit_log_list' %}?customer={{ customer.id }}" class="btn btn-sm btn-outline-primary">
+        <a href="{% url 'ui:audit_log_list' %}?customer={{ customer.id }}" class="btn btn-sm btn-outline-primary">
             Alle anzeigen <i class="ti ti-arrow-right"></i>
         </a>
     </div>

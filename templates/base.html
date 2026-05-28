@@ -25,13 +25,13 @@
     {% if user.is_authenticated %}
     <!-- Sidebar -->
     <div class="sidebar">
-        <a href="{% url 'dashboard' %}" class="sidebar-logo">
+        <a href="{% url 'ui:dashboard' %}" class="sidebar-logo">
             <i class="ti ti-bolt"></i>
             zenico.admin
         </a>
 
         <nav class="sidebar-nav">
-            <a href="{% url 'dashboard' %}" class="nav-link {% active_nav request 'dashboard' %}">
+            <a href="{% url 'ui:dashboard' %}" class="nav-link {% active_nav request 'dashboard' %}">
                 <i class="ti ti-dashboard"></i>
                 Dashboard
                 {% if alert_count > 0 %}
@@ -41,15 +41,15 @@
 
             <div class="nav-section-title">Verwaltung</div>
             {% if user.role in 'superadmin,support' %}
-            <a href="{% url 'customer_list' %}" class="nav-link {% active_nav request 'customer_list' %}">
+            <a href="{% url 'ui:customer_list' %}" class="nav-link {% active_nav request 'customer_list' %}">
                 <i class="ti ti-building"></i>
                 Kunden
             </a>
-            <a href="{% url 'instance_list' %}" class="nav-link {% active_nav request 'instance_list' %}">
+            <a href="{% url 'ui:instance_list' %}" class="nav-link {% active_nav request 'instance_list' %}">
                 <i class="ti ti-server"></i>
                 Instanzen
             </a>
-            <a href="{% url 'subscription_list' %}" class="nav-link {% active_nav request 'subscription_list' %}">
+            <a href="{% url 'ui:subscription_list' %}" class="nav-link {% active_nav request 'subscription_list' %}">
                 <i class="ti ti-license"></i>
                 Lizenzen
             </a>
@@ -57,15 +57,15 @@
 
             {% if user.role in 'superadmin,billing' %}
             <div class="nav-section-title">Billing</div>
-            <a href="{% url 'subscription_list' %}" class="nav-link {% active_nav request 'subscription_list' %}">
+            <a href="{% url 'ui:subscription_list' %}" class="nav-link {% active_nav request 'subscription_list' %}">
                 <i class="ti ti-repeat"></i>
                 Abonnements
             </a>
-            <a href="{% url 'invoice_list' %}" class="nav-link {% active_nav request 'invoice_list' %}">
+            <a href="{% url 'ui:invoice_list' %}" class="nav-link {% active_nav request 'invoice_list' %}">
                 <i class="ti ti-file-invoice"></i>
                 Rechnungen
             </a>
-            <a href="{% url 'stripe_event_list' %}" class="nav-link {% active_nav request 'stripe_event_list' %}">
+            <a href="{% url 'ui:stripe_event_list' %}" class="nav-link {% active_nav request 'stripe_event_list' %}">
                 <i class="ti ti-webhook"></i>
                 Stripe Events
             </a>
@@ -73,7 +73,7 @@
 
             {% if user.role in 'superadmin,support' %}
             <div class="nav-section-title">System</div>
-            <a href="{% url 'audit_log_list' %}" class="nav-link {% active_nav request 'audit_log_list' %}">
+            <a href="{% url 'ui:audit_log_list' %}" class="nav-link {% active_nav request 'audit_log_list' %}">
                 <i class="ti ti-history"></i>
                 Audit Log
             </a>
@@ -109,7 +109,7 @@
             <div class="sidebar-user-name">
                 {{ user.display_name }}
             </div>
-            <a href="{% url 'logout' %}" class="text-white" title="Logout">
+            <a href="{% url 'ui:logout' %}" class="text-white" title="Logout">
                 <i class="ti ti-logout"></i>
             </a>
         </div>
@@ -127,7 +127,7 @@
                 </div>
 
                 {% if alert_count > 0 %}
-                <a href="{% url 'customer_list' %}?filter=problems" class="topbar-alert-badge" title="Kundenprobleme">
+                <a href="{% url 'ui:customer_list' %}?filter=problems" class="topbar-alert-badge" title="Kundenprobleme">
                     <i class="ti ti-alert-triangle"></i>
                     <span class="badge bg-danger">{{ alert_count }}</span>
                 </a>

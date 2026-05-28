@@ -9,7 +9,7 @@
 <div class="mb-4">
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'invoice_list' %}">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'ui:invoice_list' %}">
                 Alle
             </a>
         </li>
@@ -50,7 +50,7 @@
                 <tr>
                     <td><code>{{ invoice.stripe_invoice_id }}</code></td>
                     <td>
-                        <a href="{% url 'customer_detail' invoice.customer.slug %}">
+                        <a href="{% url 'ui:customer_detail' invoice.customer.slug %}">
                             {{ invoice.customer.company_name }}
                         </a>
                     </td>

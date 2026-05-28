@@ -7,7 +7,7 @@
 
 {% block content %}
 <!-- KPI Cards -->
-<div class="kpi-grid" hx-get="{% url 'dashboard_kpis' %}" hx-trigger="every 60s" hx-swap="outerHTML">
+<div class="kpi-grid" hx-get="{% url 'ui:dashboard_kpis' %}" hx-trigger="every 60s" hx-swap="outerHTML">
     <div class="kpi-card">
         <div class="kpi-label">Kunden</div>
         <div class="kpi-value">{{ total_customers }}</div>
@@ -51,7 +51,7 @@
     <div class="table-card">
         <div class="table-card-header">
             <h3 class="table-card-title">Aktuelle Kunden</h3>
-            <a href="{% url 'customer_list' %}" class="btn btn-sm btn-outline-primary">
+            <a href="{% url 'ui:customer_list' %}" class="btn btn-sm btn-outline-primary">
                 Alle anzeigen <i class="ti ti-arrow-right"></i>
             </a>
         </div>
@@ -69,7 +69,7 @@
                 </thead>
                 <tbody>
                     {% for customer in dashboard_customers %}
-                    <tr onclick="window.location.href='{% url 'customer_detail' customer.slug %}'">
+                    <tr onclick="window.location.href='{% url 'ui:customer_detail' customer.slug %}'">
                         <td>
                             <strong>{{ customer.company_name }}</strong><br>
                             <small class="text-muted">{{ customer.slug }}.zenico.app</small>
@@ -117,10 +117,10 @@
     </div>
 
     <!-- Activity Feed -->
-    <div class="activity-feed" hx-get="{% url 'dashboard_activity' %}" hx-trigger="every 30s" hx-swap="innerHTML">
+    <div class="activity-feed" hx-get="{% url 'ui:dashboard_activity' %}" hx-trigger="every 30s" hx-swap="innerHTML">
         <div class="table-card-header">
             <h3 class="table-card-title">Aktivitäten</h3>
-            <a href="{% url 'audit_log_list' %}" class="btn btn-sm btn-outline-primary">
+            <a href="{% url 'ui:audit_log_list' %}" class="btn btn-sm btn-outline-primary">
                 Audit Log <i class="ti ti-arrow-right"></i>
             </a>
         </div>
