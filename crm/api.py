@@ -1,0 +1,165 @@
+"""
+Public REST API endpoints for CRM.
+
+These endpoints are called by zenico.web and do not require authentication.
+Rate limiting and CORS are applied.
+"""
+
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
+from django.utils import timezone
+import os
+
+from crm.models import Contact
+from newsletter.models import Subscriber
+from core.services.mail import MailService
+from core.services.audit import AuditService, AuditAction
+
+
+@method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='dispatch')
+class ContactCreateAPIView(APIView):
+    """
+    POST /api/contacts/
+
+    Create a new contact from the zenico.web contact form.
+    """
+
+    def post(self, request):
+        """
+        Handle incoming contact request.
+
+        Request body:
+        {
+            "first_name": "Max",
+            "last_name": "Mustermann",
+            "email": "max@example.com",
+            "phone": "",
+            "company": "Muster GmbH",
+            "message": "Ich hätte Interesse an Zenico...",
+            "newsletter_consent": true,
+            "ip_address": "1.2.3.4"
+        }
+        """
+        # Extract data
+        data = request.data
+        first_name = data.get('first_name', '').strip()
+        last_name = data.get('last_name', '').strip()
+        email = data.get('email', '').strip()
+        phone = data.get('phone', '').strip()
+        company = data.get('company', '').strip()
+        message = data.get('message', '').strip()
+        newsletter_consent = data.get('newsletter_consent', False)
+        ip_address = data.get('ip_address', request.META.get('REMOTE_ADDR'))
+
+        # Validate required fields
+        if not all([first_name, last_name, email]):
+            return Response(
+                {'error': 'first_name, last_name, and email are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Create contact
+        contact = Contact.objects.create(
+            source='web_contact',
+            status='new',
+            first_name=first_name,
+            last_name=last_name,
+            email=email,
+            phone=phone,
+            company=company,
+            message=message,
+            newsletter_consent=newsletter_consent,
+            ip_address=ip_address,
+        )
+
+        # If newsletter consent, create or reactivate subscriber
+        if newsletter_consent:
+            subscriber, created = Subscriber.objects.get_or_create(
+                email=email,
+                defaults={
+                    'first_name': first_name,
+                    'last_name': last_name,
+                    'source': 'contact_form',
+                    'status': 'active',
+                    'ip_address': ip_address,
+                    'contact': contact,
+                }
+            )
+
+            # If already exists but unsubscribed, reactivate
+            if not created and subscriber.status == 'unsubscribed':
+                subscriber.status = 'active'
+                subscriber.contact = contact
+                subscriber.save()
+
+            # Send double-opt-in email
+            confirmation_url = f"https://zenico.app/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
+            MailService.send_template(
+                to=email,
+                template='newsletter_doi',
+                context={
+                    'first_name': first_name,
+                    'confirmation_url': confirmation_url,
+                    'subject': 'Newsletter-Anmeldung bestätigen – Zenico'
+                }
+            )
+
+        # Send confirmation email to contact
+        MailService.send_template(
+            to=email,
+            template='contact_confirmation',
+            context={
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'phone': phone,
+                'company': company,
+                'message': message,
+                'subject': 'Ihre Anfrage bei Zenico – Bestätigung'
+            }
+        )
+
+        # Send notification email to admin
+        admin_email = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'admin@zenico.app')
+        admin_url = os.getenv('ADMIN_URL', 'https://admin.zenico.app') + f'/crm/contacts/{contact.id}/'
+        MailService.send_template(
+            to=admin_email,
+            template='contact_notification',
+            context={
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'phone': phone,
+                'company': company,
+                'message': message,
+                'newsletter_consent': newsletter_consent,
+                'ip_address': ip_address,
+                'admin_url': admin_url,
+                'subject': 'Neue Kontaktanfrage über zenico.web'
+            }
+        )
+
+        # Log audit
+        AuditService.log(
+            action=AuditAction.CONTACT_CREATED,
+            resource_type='Contact',
+            resource_id=str(contact.id),
+            actor_email='system',
+            actor_ip=ip_address,
+            after={
+                'first_name': first_name,
+                'last_name': last_name,
+                'email': email,
+                'company': company,
+                'newsletter_consent': newsletter_consent,
+            },
+            note=f'Contact created from web form: {email}'
+        )
+
+        return Response(
+            {'message': 'Contact created successfully'},
+            status=status.HTTP_201_CREATED
+        )
