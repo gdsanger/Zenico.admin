@@ -1,0 +1,9 @@
+{% if contact.status == 'new' %}
+<span class="badge bg-warning">Neu</span>
+{% elif contact.status == 'in_progress' %}
+<span class="badge bg-info">In Bearbeitung</span>
+{% elif contact.status == 'converted' %}
+<span class="badge bg-success">Konvertiert</span>
+{% elif contact.status == 'closed' %}
+<span class="badge bg-secondary">Geschlossen</span>
+{% endif %}

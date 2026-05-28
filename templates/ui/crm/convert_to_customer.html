@@ -1,0 +1,23 @@
+{% extends "ui/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}Zu Kunde konvertieren | CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Kontakt zu Kunde konvertieren</h1>
+        <a href="{% url 'ui:contact_detail' contact.id %}" class="btn btn-secondary">Abbrechen</a>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Kontakt:</strong> {{ contact.full_name }} ({{ contact.email }})
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        <button type="submit" class="btn btn-primary">Kunde anlegen</button>
+    </form>
+</div>
+{% endblock %}

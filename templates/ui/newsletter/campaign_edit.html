@@ -1,0 +1,19 @@
+{% extends "ui/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}Kampagne bearbeiten | Newsletter{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Kampagne bearbeiten</h1>
+        <a href="{% url 'ui:campaign_list' %}" class="btn btn-secondary">Zurück</a>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+        {% bootstrap_form form %}
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
+</div>
+{% endblock %}

@@ -27,6 +27,21 @@ from ui.views import (
     AuditLogListView,
     audit_export_csv,
 )
+from crm.views import (
+    ContactListView,
+    ContactDetailView,
+    add_contact_note,
+    update_contact_status,
+    ConvertToCustomerView,
+)
+from newsletter.views import (
+    SubscriberListView,
+    CampaignListView,
+    CampaignEditView,
+    AutomationListView,
+)
+
+app_name = 'ui'
 
 urlpatterns = [
     # Auth
@@ -60,4 +75,17 @@ urlpatterns = [
     # Audit
     path('audit/', AuditLogListView.as_view(), name='audit_log_list'),
     path('audit/export/', audit_export_csv, name='audit_export_csv'),
+
+    # CRM
+    path('crm/contacts/', ContactListView.as_view(), name='contact_list'),
+    path('crm/contacts/<uuid:contact_id>/', ContactDetailView.as_view(), name='contact_detail'),
+    path('crm/contacts/<uuid:contact_id>/add-note/', add_contact_note, name='contact_add_note'),
+    path('crm/contacts/<uuid:contact_id>/update-status/', update_contact_status, name='contact_update_status'),
+    path('crm/contacts/<uuid:contact_id>/convert/', ConvertToCustomerView.as_view(), name='contact_convert'),
+
+    # Newsletter
+    path('newsletter/subscribers/', SubscriberListView.as_view(), name='subscriber_list'),
+    path('newsletter/campaigns/', CampaignListView.as_view(), name='campaign_list'),
+    path('newsletter/campaigns/<uuid:campaign_id>/edit/', CampaignEditView.as_view(), name='campaign_edit'),
+    path('newsletter/automations/', AutomationListView.as_view(), name='automation_list'),
 ]

@@ -1,0 +1,139 @@
+{% extends "ui/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}{{ contact.full_name }} | CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{{ contact.full_name }}</h1>
+        <div>
+            <a href="{% url 'ui:contact_list' %}" class="btn btn-secondary">Zurück</a>
+            {% if contact.status != 'converted' %}
+            <a href="{% url 'ui:contact_convert' contact.id %}" class="btn btn-primary">Zu Kunde →</a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Contact Details -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Kontaktdaten</h5>
+                    <div id="status-badge">
+                        {% include "ui/crm/partials/status_badge.html" %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Name:</dt>
+                        <dd class="col-sm-8">{{ contact.full_name }}</dd>
+
+                        <dt class="col-sm-4">E-Mail:</dt>
+                        <dd class="col-sm-8"><a href="mailto:{{ contact.email }}">{{ contact.email }}</a></dd>
+
+                        {% if contact.phone %}
+                        <dt class="col-sm-4">Telefon:</dt>
+                        <dd class="col-sm-8">{{ contact.phone }}</dd>
+                        {% endif %}
+
+                        {% if contact.company %}
+                        <dt class="col-sm-4">Firma:</dt>
+                        <dd class="col-sm-8">{{ contact.company }}</dd>
+                        {% endif %}
+
+                        {% if contact.message %}
+                        <dt class="col-sm-4">Nachricht:</dt>
+                        <dd class="col-sm-8">{{ contact.message }}</dd>
+                        {% endif %}
+                    </dl>
+
+                    <!-- Status Update -->
+                    <form hx-post="{% url 'ui:contact_update_status' contact.id %}" hx-target="#status-badge">
+                        {% csrf_token %}
+                        <div class="mt-3">
+                            <label for="status" class="form-label">Status ändern:</label>
+                            <select name="status" id="status" class="form-select" hx-post="{% url 'ui:contact_update_status' contact.id %}" hx-trigger="change" hx-target="#status-badge">
+                                <option value="new" {% if contact.status == 'new' %}selected{% endif %}>Neu</option>
+                                <option value="in_progress" {% if contact.status == 'in_progress' %}selected{% endif %}>In Bearbeitung</option>
+                                <option value="converted" {% if contact.status == 'converted' %}selected{% endif %}>Konvertiert</option>
+                                <option value="closed" {% if contact.status == 'closed' %}selected{% endif %}>Geschlossen</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column: Meta -->
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Meta-Informationen</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Quelle:</dt>
+                        <dd class="col-sm-8">
+                            {% if contact.source == 'web_contact' %}Web Formular{% else %}Manuell{% endif %}
+                        </dd>
+
+                        {% if contact.ip_address %}
+                        <dt class="col-sm-4">IP-Adresse:</dt>
+                        <dd class="col-sm-8">{{ contact.ip_address }}</dd>
+                        {% endif %}
+
+                        <dt class="col-sm-4">Newsletter:</dt>
+                        <dd class="col-sm-8">
+                            {% if contact.newsletter_consent %}
+                            <i class="bi bi-check-circle text-success"></i> Ja
+                            {% else %}
+                            <i class="bi bi-x-circle text-muted"></i> Nein
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Erstellt:</dt>
+                        <dd class="col-sm-8">{{ contact.created_at|date:"d.m.Y H:i" }}</dd>
+
+                        {% if contact.converted_to %}
+                        <dt class="col-sm-4">Konvertiert zu:</dt>
+                        <dd class="col-sm-8">
+                            <a href="{% url 'ui:customer_detail' contact.converted_to.slug %}">{{ contact.converted_to.company_name }}</a>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes Section -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Notizen & Aktivität</h5>
+        </div>
+        <div class="card-body">
+            <!-- Add Note Form -->
+            <form hx-post="{% url 'ui:contact_add_note' contact.id %}" hx-target="#notes-list" hx-swap="afterbegin">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <textarea name="note" class="form-control" rows="3" placeholder="Notiz hinzufügen..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Notiz hinzufügen</button>
+            </form>
+
+            <hr>
+
+            <!-- Notes List -->
+            <div id="notes-list">
+                {% for note in notes %}
+                    {% include "ui/crm/partials/note_item.html" %}
+                {% empty %}
+                <p class="text-muted">Noch keine Notizen vorhanden.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

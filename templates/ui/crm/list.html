@@ -1,0 +1,120 @@
+{% extends "ui/base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}Kontakte | CRM{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Kontakte</h1>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mb-4">
+        <li class="nav-item">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="?">
+                Alle ({{ status_counts.all }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'new' %}active{% endif %}" href="?status=new">
+                Neu ({{ status_counts.new }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'in_progress' %}active{% endif %}" href="?status=in_progress">
+                In Bearbeitung ({{ status_counts.in_progress }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'converted' %}active{% endif %}" href="?status=converted">
+                Konvertiert ({{ status_counts.converted }})
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if current_status == 'closed' %}active{% endif %}" href="?status=closed">
+                Geschlossen ({{ status_counts.closed }})
+            </a>
+        </li>
+    </ul>
+
+    <!-- Search -->
+    <form method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" class="form-control" placeholder="Nach Name, E-Mail oder Firma suchen..."
+                   value="{{ search_query }}" hx-get="{% url 'ui:contact_list' %}" hx-trigger="keyup changed delay:500ms"
+                   hx-target="#contacts-table">
+            <button class="btn btn-outline-secondary" type="submit">Suchen</button>
+        </div>
+    </form>
+
+    <!-- Contacts Table -->
+    <div id="contacts-table" class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Firma</th>
+                    <th>E-Mail</th>
+                    <th>Quelle</th>
+                    <th>Status</th>
+                    <th>Newsletter</th>
+                    <th>Erstellt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for contact in contacts %}
+                <tr onclick="window.location='{% url 'ui:contact_detail' contact.id %}';" style="cursor: pointer;">
+                    <td>{{ contact.full_name }}</td>
+                    <td>{{ contact.company|default:"-" }}</td>
+                    <td>{{ contact.email }}</td>
+                    <td>
+                        {% if contact.source == 'web_contact' %}
+                        <span class="badge bg-info">Web</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Manuell</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% include "ui/crm/partials/status_badge.html" %}
+                    </td>
+                    <td>
+                        {% if contact.newsletter_consent %}
+                        <i class="bi bi-check-circle text-success"></i>
+                        {% else %}
+                        <i class="bi bi-x-circle text-muted"></i>
+                        {% endif %}
+                    </td>
+                    <td>{{ contact.created_at|date:"d.m.Y H:i" }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">Keine Kontakte gefunden</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <nav>
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Zurück</a>
+            </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">{{ page_obj.number }} von {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_query %}&search={{ search_query }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}">Weiter</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

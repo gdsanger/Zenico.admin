@@ -1,0 +1,62 @@
+{% extends "ui/base.html" %}
+
+{% block title %}Kampagnen | Newsletter{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Newsletter-Kampagnen</h1>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Status</th>
+                    <th>Segment</th>
+                    <th>Empfänger</th>
+                    <th>Geplant/Gesendet</th>
+                    <th>Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for campaign in campaigns %}
+                <tr>
+                    <td>{{ campaign.name }}</td>
+                    <td>
+                        {% if campaign.status == 'draft' %}
+                        <span class="badge bg-secondary">Entwurf</span>
+                        {% elif campaign.status == 'scheduled' %}
+                        <span class="badge bg-info">Geplant</span>
+                        {% elif campaign.status == 'sending' %}
+                        <span class="badge bg-warning">Wird gesendet</span>
+                        {% elif campaign.status == 'sent' %}
+                        <span class="badge bg-success">Gesendet</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ campaign.get_segment_display }}</td>
+                    <td>{{ campaign.recipient_count|default:"-" }}</td>
+                    <td>
+                        {% if campaign.sent_at %}
+                        {{ campaign.sent_at|date:"d.m.Y H:i" }}
+                        {% elif campaign.scheduled_at %}
+                        {{ campaign.scheduled_at|date:"d.m.Y H:i" }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{% url 'ui:campaign_edit' campaign.id %}" class="btn btn-sm btn-outline-primary">Bearbeiten</a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted">Keine Kampagnen gefunden</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
