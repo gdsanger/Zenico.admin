@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'audit',
     'core',
     'ui',
+    'crm',
+    'newsletter',
 ]
 
 MIDDLEWARE = [
