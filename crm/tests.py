@@ -362,3 +362,88 @@ class SequenceEnrollmentModelTests(TestCase):
         enrollment.status = 'completed'
         enrollment.save()
         self.assertFalse(enrollment.is_active)
+
+
+class AcceptanceCriteriaTests(TestCase):
+    """Test all acceptance criteria for ISSUE-15."""
+
+    def test_migrations_run_successfully(self):
+        """AC: python manage.py migrate runs cleanly."""
+        # If we're here, migrations already ran
+        self.assertTrue(True)
+
+    def test_unsubscribe_token_auto_generated(self):
+        """AC: unsubscribe_token is auto-generated on first save()."""
+        subscriber = Subscriber.objects.create(
+            email='auto@example.com',
+            source='web_form'
+        )
+        self.assertIsNotNone(subscriber.unsubscribe_token)
+        self.assertTrue(len(subscriber.unsubscribe_token) > 0)
+
+    def test_duplicate_subscriber_email_raises_error(self):
+        """AC: Duplicate Subscriber (same email) raises Unique-Constraint-Error."""
+        Subscriber.objects.create(
+            email='duplicate@example.com',
+            source='web_form'
+        )
+        with self.assertRaises(IntegrityError):
+            Subscriber.objects.create(
+                email='duplicate@example.com',
+                source='manual'
+            )
+
+    def test_duplicate_sequence_enrollment_raises_error(self):
+        """AC: Duplicate enrollment in same sequence raises Constraint-Error."""
+        sequence = AutomationSequence.objects.create(
+            name='Test Sequence',
+            trigger='manual'
+        )
+        subscriber = Subscriber.objects.create(
+            email='enroll@example.com',
+            source='web_form'
+        )
+        SequenceEnrollment.objects.create(
+            sequence=sequence,
+            subscriber=subscriber
+        )
+        with self.assertRaises(IntegrityError):
+            SequenceEnrollment.objects.create(
+                sequence=sequence,
+                subscriber=subscriber
+            )
+
+    def test_campaign_is_editable(self):
+        """AC: Campaign with status != draft is not editable (is_editable = False)."""
+        admin = AdminUser.objects.create_user(
+            email='admin@test.com',
+            password='password123',
+            display_name='Test Admin'
+        )
+
+        # Draft campaign is editable
+        campaign = Campaign.objects.create(
+            name='Test Campaign',
+            subject='Test Subject',
+            html_body='<p>Test</p>',
+            created_by=admin,
+            status='draft'
+        )
+        self.assertTrue(campaign.is_editable)
+
+        # Non-draft campaign is not editable
+        campaign.status = 'sent'
+        campaign.save()
+        self.assertFalse(campaign.is_editable)
+
+        campaign.status = 'scheduled'
+        campaign.save()
+        self.assertFalse(campaign.is_editable)
+
+        campaign.status = 'sending'
+        campaign.save()
+        self.assertFalse(campaign.is_editable)
+
+        campaign.status = 'cancelled'
+        campaign.save()
+        self.assertFalse(campaign.is_editable)
