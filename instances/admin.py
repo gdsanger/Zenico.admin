@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Instance
+from .models import Instance, UserLicense
 
 
 @admin.register(Instance)
@@ -95,3 +95,63 @@ class InstanceAdmin(admin.ModelAdmin):
         """Display the computed FQDN in the admin."""
         return obj.fqdn
     fqdn.short_description = 'FQDN'
+
+
+@admin.register(UserLicense)
+class UserLicenseAdmin(admin.ModelAdmin):
+    """Admin interface for UserLicense model."""
+
+    list_display = [
+        'display_name',
+        'email',
+        'instance',
+        'role',
+        'is_active',
+        'activated_at',
+    ]
+    list_filter = ['role', 'is_active', 'activated_at', 'instance__customer']
+    search_fields = [
+        'display_name',
+        'email',
+        'azure_oid',
+        'instance__display_name',
+        'instance__customer__company_name',
+    ]
+    readonly_fields = [
+        'id',
+        'activated_at',
+    ]
+
+    fieldsets = [
+        ('User Information', {
+            'fields': [
+                'id',
+                'azure_oid',
+                'email',
+                'display_name',
+            ]
+        }),
+        ('License Details', {
+            'fields': [
+                'instance',
+                'role',
+                'is_active',
+            ]
+        }),
+        ('Timestamps', {
+            'fields': [
+                'activated_at',
+                'deactivated_at',
+            ],
+        }),
+    ]
+
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Make instance and azure_oid readonly after initial creation.
+        """
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj:  # Editing existing object
+            readonly.extend(['instance', 'azure_oid'])
+        return readonly
+
