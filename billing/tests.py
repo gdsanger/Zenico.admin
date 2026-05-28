@@ -617,3 +617,161 @@ class InvoiceModelTest(TestCase):
             invoice_data['currency'] = currency
             invoice = Invoice.objects.create(**invoice_data)
             self.assertEqual(invoice.currency, currency)
+
+
+class StripeWebhookHandlerTests(TestCase):
+    """Test suite for StripeWebhookHandler."""
+
+    def setUp(self):
+        """Set up test data."""
+        import os
+        os.environ['STRIPE_WEBHOOK_SECRET'] = 'whsec_test_secret'
+
+        self.customer = Customer.objects.create(
+            slug='webhooktest',
+            company_name='Webhook Test Co',
+            contact_name='Test User',
+            contact_email='test@webhook.com',
+            billing_email='billing@webhook.com',
+            stripe_customer_id='cus_webhook123',
+        )
+
+    def test_webhook_signature_verification_failure(self):
+        """Test that invalid signature raises error."""
+        from core.services.webhook import StripeWebhookHandler
+        
+        payload = b'{"id": "evt_test", "type": "test"}'
+        bad_signature = 'invalid_signature'
+
+        with self.assertRaises(Exception):
+            StripeWebhookHandler.handle(payload, bad_signature)
+
+    def test_webhook_idempotency(self):
+        """Test that processing same event twice is idempotent."""
+        from core.services.webhook import StripeWebhookHandler
+        from billing.models import StripeEvent
+        from unittest.mock import patch, MagicMock
+
+        # Create a mock event
+        mock_event = {
+            'id': 'evt_idempotent_test',
+            'type': 'customer.updated',
+            'data': {
+                'object': {
+                    'id': self.customer.stripe_customer_id,
+                    'email': 'new@webhook.com',
+                }
+            }
+        }
+
+        # Mock the signature verification
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            # First call - should process
+            StripeWebhookHandler.handle(b'payload', 'sig')
+
+            # Check event was created
+            db_event = StripeEvent.objects.get(stripe_event_id='evt_idempotent_test')
+            self.assertTrue(db_event.processed)
+
+            # Second call - should skip (idempotent)
+            StripeWebhookHandler.handle(b'payload', 'sig')
+
+            # Event should still be processed exactly once
+            self.assertEqual(StripeEvent.objects.filter(stripe_event_id='evt_idempotent_test').count(), 1)
+
+    def test_webhook_subscription_deleted_suspends_instances(self):
+        """Test that subscription.deleted suspends all instances."""
+        from core.services.webhook import StripeWebhookHandler
+        from customers.models import Subscription, Plan
+        from instances.models import Instance
+        from unittest.mock import patch
+
+        # Get or create plan
+        plan, _ = Plan.objects.get_or_create(
+            name='starter',
+            defaults={'display_name': 'Starter Plan'}
+        )
+
+        # Create subscription
+        subscription = Subscription.objects.create(
+            customer=self.customer,
+            plan=plan,
+            stripe_subscription_id='sub_test123',
+            stripe_status='active',
+            user_seats_total=10,
+            instance_seats_total=2,
+        )
+
+        # Create active instances
+        instance1 = Instance.objects.create_master(
+            customer=self.customer,
+            subscription=subscription,
+            display_name='Test Instance 1',
+            user_seats=10,
+            status='active',
+        )
+        instance2 = Instance.objects.create(
+            customer=self.customer,
+            slug='test2',
+            display_name='Test Instance 2',
+            subscription=subscription,
+            user_seats=5,
+            is_master=False,
+            status='active',
+        )
+
+        # Mock event
+        mock_event = {
+            'id': 'evt_sub_deleted',
+            'type': 'customer.subscription.deleted',
+            'data': {
+                'object': {
+                    'id': 'sub_test123',
+                    'customer': self.customer.stripe_customer_id,
+                    'status': 'canceled',
+                }
+            }
+        }
+
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            StripeWebhookHandler.handle(b'payload', 'sig')
+
+        # Check instances are suspended
+        instance1.refresh_from_db()
+        instance2.refresh_from_db()
+        self.assertEqual(instance1.status, 'suspended')
+        self.assertEqual(instance2.status, 'suspended')
+
+    def test_webhook_invoice_payment_failed_sends_email(self):
+        """Test that invoice.payment_failed sends email."""
+        from core.services.webhook import StripeWebhookHandler
+        from unittest.mock import patch, MagicMock
+
+        mock_event = {
+            'id': 'evt_payment_failed',
+            'type': 'invoice.payment_failed',
+            'data': {
+                'object': {
+                    'id': 'in_test123',
+                    'customer': self.customer.stripe_customer_id,
+                    'amount_due': 19900,  # $199 in cents
+                    'currency': 'usd',
+                    'status': 'open',
+                    'hosted_invoice_url': 'https://stripe.com/invoice/test',
+                }
+            }
+        }
+
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            with patch('core.services.webhook.MailService.send_template') as mock_send:
+                with patch('core.services.webhook.StripeService.sync_invoice') as mock_sync:
+                    mock_send.return_value = True
+                    mock_sync.return_value = None
+
+                    StripeWebhookHandler.handle(b'payload', 'sig')
+
+                    # Verify email was sent
+                    mock_send.assert_called_once()
+                    call_kwargs = mock_send.call_args.kwargs if hasattr(mock_send.call_args, 'kwargs') else mock_send.call_args[1]
+                    self.assertEqual(call_kwargs['to'], self.customer.billing_email)
+                    self.assertEqual(call_kwargs['template'], 'payment_failed')

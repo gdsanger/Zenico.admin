@@ -2,3 +2,6 @@ django>=5.0
 psycopg2-binary
 python-dotenv
 dj-database-url
+msal>=1.28
+requests>=2.31
+stripe>=8.0

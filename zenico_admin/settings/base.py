@@ -39,6 +39,7 @@ INSTALLED_APPS = [
     'instances',
     'billing',
     'audit',
+    'core',
 ]
 
 MIDDLEWARE = [
