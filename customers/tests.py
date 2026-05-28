@@ -1,7 +1,9 @@
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from .models import Plan, Customer
+from datetime import datetime, timedelta
+from django.utils import timezone
+from .models import Plan, Customer, Subscription
 
 
 class PlanModelTest(TestCase):
@@ -390,3 +392,288 @@ class CustomerModelTest(TestCase):
         customers = list(Customer.objects.all())
         self.assertEqual(customers[0].company_name, 'Alpha Co')
         self.assertEqual(customers[1].company_name, 'Zebra Co')
+
+
+class SubscriptionModelTest(TestCase):
+    """Test cases for the Subscription model."""
+
+    def setUp(self):
+        """Set up test data."""
+        # Create a customer
+        self.customer = Customer.objects.create(
+            slug='testco',
+            company_name='Test Company GmbH',
+            contact_name='John Doe',
+            contact_email='john@testco.de',
+            billing_email='billing@testco.de',
+            billing_address='Test Street 123',
+            billing_city='Berlin',
+            billing_postal_code='10115',
+            billing_country='DE',
+            status='active',
+        )
+
+        # Create a plan
+        self.plan = Plan.objects.filter(name='starter').first()
+
+        # Subscription test data
+        self.subscription_data = {
+            'customer': self.customer,
+            'plan': self.plan,
+            'stripe_subscription_id': 'sub_test123',
+            'stripe_status': 'active',
+            'user_seats_total': 10,
+            'instance_seats_total': 3,
+            'ai_addon_active': False,
+            'current_period_start': timezone.now(),
+            'current_period_end': timezone.now() + timedelta(days=30),
+        }
+
+    def test_subscription_creation(self):
+        """Test creating a subscription with valid data."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        self.assertIsNotNone(subscription.id)
+        self.assertEqual(subscription.customer, self.customer)
+        self.assertEqual(subscription.plan, self.plan)
+        self.assertEqual(subscription.stripe_subscription_id, 'sub_test123')
+        self.assertEqual(subscription.stripe_status, 'active')
+
+    def test_subscription_str_method(self):
+        """Test the __str__ method returns proper format."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        expected = f"{self.customer.company_name} - {self.plan.display_name} (active)"
+        self.assertEqual(str(subscription), expected)
+
+    def test_subscription_uuid_primary_key(self):
+        """Test that subscriptions use UUID as primary key."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        self.assertIsNotNone(subscription.id)
+        # UUID should be a string representation of 36 characters with hyphens
+        self.assertEqual(len(str(subscription.id)), 36)
+
+    def test_subscription_timestamps(self):
+        """Test that timestamps are automatically set."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        self.assertIsNotNone(subscription.created_at)
+        self.assertIsNotNone(subscription.updated_at)
+
+    def test_stripe_subscription_id_unique(self):
+        """Test that stripe_subscription_id must be unique."""
+        Subscription.objects.create(**self.subscription_data)
+
+        # Try to create another subscription with the same stripe_subscription_id
+        data2 = self.subscription_data.copy()
+        data2['stripe_subscription_id'] = 'sub_test123'
+
+        with self.assertRaises(Exception):  # IntegrityError
+            Subscription.objects.create(**data2)
+
+    def test_subscription_default_values(self):
+        """Test default values for subscription fields."""
+        minimal_data = {
+            'customer': self.customer,
+            'plan': self.plan,
+            'stripe_subscription_id': 'sub_minimal',
+            'stripe_status': 'active',
+        }
+        subscription = Subscription.objects.create(**minimal_data)
+        self.assertEqual(subscription.user_seats_total, 1)
+        self.assertEqual(subscription.instance_seats_total, 1)
+        self.assertFalse(subscription.ai_addon_active)
+        self.assertIsNone(subscription.current_period_start)
+        self.assertIsNone(subscription.current_period_end)
+        self.assertIsNone(subscription.trial_end)
+        self.assertIsNone(subscription.cancelled_at)
+
+    def test_subscription_stripe_status_choices(self):
+        """Test that subscription can be set to different Stripe statuses."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+
+        statuses = [
+            'active', 'trialing', 'past_due', 'cancelled',
+            'unpaid', 'incomplete', 'incomplete_expired', 'paused'
+        ]
+
+        for status in statuses:
+            subscription.stripe_status = status
+            subscription.save()
+            subscription.refresh_from_db()
+            self.assertEqual(subscription.stripe_status, status)
+
+    def test_is_active_property_active_status(self):
+        """Test is_active property returns True for active status."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        subscription.stripe_status = 'active'
+        self.assertTrue(subscription.is_active)
+
+    def test_is_active_property_trialing_status(self):
+        """Test is_active property returns True for trialing status."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        subscription.stripe_status = 'trialing'
+        self.assertTrue(subscription.is_active)
+
+    def test_is_active_property_inactive_statuses(self):
+        """Test is_active property returns False for inactive statuses."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+
+        inactive_statuses = ['past_due', 'cancelled', 'unpaid', 'incomplete', 'incomplete_expired', 'paused']
+
+        for status in inactive_statuses:
+            subscription.stripe_status = status
+            self.assertFalse(subscription.is_active, f"Status {status} should not be active")
+
+    def test_used_user_seats_returns_zero(self):
+        """Test used_user_seats() returns 0 (placeholder until Instance model is ready)."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        self.assertEqual(subscription.used_user_seats(), 0)
+
+    def test_available_user_seats_calculation(self):
+        """Test available_user_seats() calculates correctly."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        subscription.user_seats_total = 10
+        # Since used_user_seats() returns 0 (placeholder), available should equal total
+        self.assertEqual(subscription.available_user_seats(), 10)
+
+    def test_used_instance_seats_returns_zero(self):
+        """Test used_instance_seats() returns 0 (placeholder until Instance model is ready)."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        self.assertEqual(subscription.used_instance_seats(), 0)
+
+    def test_available_instance_seats_calculation(self):
+        """Test available_instance_seats() calculates correctly."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+        subscription.instance_seats_total = 5
+        # Since used_instance_seats() returns 0 (placeholder), available should equal total
+        self.assertEqual(subscription.available_instance_seats(), 5)
+
+    def test_customer_foreign_key_protect(self):
+        """Test that customer cannot be deleted if subscription exists."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+
+        # Try to delete the customer
+        with self.assertRaises(Exception):  # ProtectedError
+            self.customer.delete()
+
+        # Verify subscription still exists
+        self.assertTrue(Subscription.objects.filter(id=subscription.id).exists())
+
+    def test_plan_foreign_key_protect(self):
+        """Test that plan cannot be deleted if subscription exists."""
+        subscription = Subscription.objects.create(**self.subscription_data)
+
+        # Try to delete the plan
+        with self.assertRaises(Exception):  # ProtectedError
+            self.plan.delete()
+
+        # Verify subscription still exists
+        self.assertTrue(Subscription.objects.filter(id=subscription.id).exists())
+
+    def test_customer_can_have_multiple_subscriptions(self):
+        """Test that a customer can have multiple subscriptions."""
+        subscription1 = Subscription.objects.create(**self.subscription_data)
+
+        data2 = self.subscription_data.copy()
+        data2['stripe_subscription_id'] = 'sub_test456'
+        data2['stripe_status'] = 'cancelled'
+        subscription2 = Subscription.objects.create(**data2)
+
+        subscriptions = self.customer.subscriptions.all()
+        self.assertEqual(subscriptions.count(), 2)
+        self.assertIn(subscription1, subscriptions)
+        self.assertIn(subscription2, subscriptions)
+
+    def test_customer_active_subscription_property(self):
+        """Test that customer.active_subscription returns the active subscription."""
+        # Create an active subscription
+        Subscription.objects.create(**self.subscription_data)
+
+        active_sub = self.customer.active_subscription
+        self.assertIsNotNone(active_sub)
+        self.assertEqual(active_sub.stripe_status, 'active')
+
+    def test_customer_active_subscription_with_trialing(self):
+        """Test that customer.active_subscription returns trialing subscription."""
+        data = self.subscription_data.copy()
+        data['stripe_status'] = 'trialing'
+        Subscription.objects.create(**data)
+
+        active_sub = self.customer.active_subscription
+        self.assertIsNotNone(active_sub)
+        self.assertEqual(active_sub.stripe_status, 'trialing')
+
+    def test_customer_active_subscription_returns_none_when_no_active(self):
+        """Test that customer.active_subscription returns None when no active subscription."""
+        data = self.subscription_data.copy()
+        data['stripe_status'] = 'cancelled'
+        Subscription.objects.create(**data)
+
+        active_sub = self.customer.active_subscription
+        self.assertIsNone(active_sub)
+
+    def test_customer_active_subscription_returns_first_when_multiple_active(self):
+        """Test that customer.active_subscription returns first when multiple active."""
+        subscription1 = Subscription.objects.create(**self.subscription_data)
+
+        data2 = self.subscription_data.copy()
+        data2['stripe_subscription_id'] = 'sub_test456'
+        Subscription.objects.create(**data2)
+
+        active_sub = self.customer.active_subscription
+        self.assertIsNotNone(active_sub)
+        # Should return the most recent one due to ordering by -created_at
+        self.assertIn(active_sub.stripe_status, ['active', 'trialing'])
+
+    def test_subscription_ordering(self):
+        """Test that subscriptions are ordered by created_at descending."""
+        subscription1 = Subscription.objects.create(**self.subscription_data)
+
+        data2 = self.subscription_data.copy()
+        data2['stripe_subscription_id'] = 'sub_test456'
+        subscription2 = Subscription.objects.create(**data2)
+
+        subscriptions = list(Subscription.objects.all())
+        # Most recent should be first
+        self.assertEqual(subscriptions[0].id, subscription2.id)
+        self.assertEqual(subscriptions[1].id, subscription1.id)
+
+    def test_subscription_with_trial_end(self):
+        """Test subscription with trial_end date."""
+        data = self.subscription_data.copy()
+        data['stripe_status'] = 'trialing'
+        data['trial_end'] = timezone.now() + timedelta(days=14)
+        subscription = Subscription.objects.create(**data)
+
+        self.assertIsNotNone(subscription.trial_end)
+        self.assertTrue(subscription.is_active)
+
+    def test_subscription_with_cancelled_at(self):
+        """Test subscription with cancelled_at date."""
+        data = self.subscription_data.copy()
+        data['stripe_status'] = 'cancelled'
+        data['cancelled_at'] = timezone.now()
+        subscription = Subscription.objects.create(**data)
+
+        self.assertIsNotNone(subscription.cancelled_at)
+        self.assertFalse(subscription.is_active)
+
+    def test_subscription_ai_addon_active(self):
+        """Test subscription with AI addon active."""
+        data = self.subscription_data.copy()
+        data['ai_addon_active'] = True
+        subscription = Subscription.objects.create(**data)
+
+        self.assertTrue(subscription.ai_addon_active)
+
+    def test_subscription_period_dates(self):
+        """Test subscription with current period dates."""
+        start_date = timezone.now()
+        end_date = start_date + timedelta(days=30)
+
+        data = self.subscription_data.copy()
+        data['current_period_start'] = start_date
+        data['current_period_end'] = end_date
+        subscription = Subscription.objects.create(**data)
+
+        self.assertEqual(subscription.current_period_start, start_date)
+        self.assertEqual(subscription.current_period_end, end_date)
+

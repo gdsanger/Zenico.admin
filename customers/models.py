@@ -205,9 +205,10 @@ class Customer(models.Model):
     def active_subscription(self):
         """
         Returns the active subscription for this customer.
-        TODO: Implement when billing app is ready.
         """
-        return None
+        return self.subscriptions.filter(
+            stripe_status__in=['active', 'trialing']
+        ).first()
 
     @property
     def is_active(self):
@@ -215,3 +216,128 @@ class Customer(models.Model):
         Returns True if the customer status is 'active'.
         """
         return self.status == 'active'
+
+
+class Subscription(models.Model):
+    """
+    Subscription model linking Customer and Plan, mirroring Stripe subscription state.
+    Tracks seat allocations at the customer level.
+    """
+
+    STRIPE_STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('trialing', 'Trialing'),
+        ('past_due', 'Past Due'),
+        ('cancelled', 'Cancelled'),
+        ('unpaid', 'Unpaid'),
+        ('incomplete', 'Incomplete'),
+        ('incomplete_expired', 'Incomplete Expired'),
+        ('paused', 'Paused'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        verbose_name='customer',
+        related_name='subscriptions'
+    )
+    plan = models.ForeignKey(
+        Plan,
+        on_delete=models.PROTECT,
+        verbose_name='plan',
+        help_text='Plan remains protected even if modified'
+    )
+    stripe_subscription_id = models.CharField(
+        max_length=100,
+        unique=True,
+        verbose_name='Stripe subscription ID'
+    )
+    stripe_status = models.CharField(
+        max_length=30,
+        choices=STRIPE_STATUS_CHOICES,
+        verbose_name='Stripe status'
+    )
+    user_seats_total = models.PositiveIntegerField(
+        default=1,
+        verbose_name='total user seats'
+    )
+    instance_seats_total = models.PositiveIntegerField(
+        default=1,
+        verbose_name='total instance seats'
+    )
+    ai_addon_active = models.BooleanField(
+        default=False,
+        verbose_name='AI addon active'
+    )
+    current_period_start = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='current period start'
+    )
+    current_period_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='current period end'
+    )
+    trial_end = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='trial end'
+    )
+    cancelled_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='cancelled at'
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='created at')
+    updated_at = models.DateTimeField(auto_now=True, verbose_name='updated at')
+
+    class Meta:
+        verbose_name = 'Subscription'
+        verbose_name_plural = 'Subscriptions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.customer.company_name} - {self.plan.display_name} ({self.stripe_status})"
+
+    @property
+    def is_active(self):
+        """
+        Returns True if subscription status is active or trialing.
+        """
+        return self.stripe_status in ['active', 'trialing']
+
+    def used_user_seats(self):
+        """
+        Returns the sum of user_seats from all instances of this customer.
+        TODO: Implement when Instance model is ready.
+        """
+        # When Instance model is ready, this should be:
+        # return self.customer.instances.filter(
+        #     status__in=['provisioning', 'active']
+        # ).aggregate(total=models.Sum('user_seats'))['total'] or 0
+        return 0
+
+    def available_user_seats(self):
+        """
+        Returns the number of available user seats.
+        """
+        return self.user_seats_total - self.used_user_seats()
+
+    def used_instance_seats(self):
+        """
+        Returns the count of instances with status provisioning or active.
+        TODO: Implement when Instance model is ready.
+        """
+        # When Instance model is ready, this should be:
+        # return self.customer.instances.filter(
+        #     status__in=['provisioning', 'active']
+        # ).count()
+        return 0
+
+    def available_instance_seats(self):
+        """
+        Returns the number of available instance seats.
+        """
+        return self.instance_seats_total - self.used_instance_seats()
