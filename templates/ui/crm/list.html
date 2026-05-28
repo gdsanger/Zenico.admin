@@ -1,4 +1,4 @@
-{% extends "ui/base.html" %}
+{% extends "base.html" %}
 {% load django_bootstrap5 %}
 
 {% block title %}Kontakte | CRM{% endblock %}
@@ -42,7 +42,7 @@
     <form method="get" class="mb-4">
         <div class="input-group">
             <input type="text" name="search" class="form-control" placeholder="Nach Name, E-Mail oder Firma suchen..."
-                   value="{{ search_query }}" hx-get="{% url 'ui:contact_list' %}" hx-trigger="keyup changed delay:500ms"
+                   value="{{ search_query }}" hx-get="{% url 'contact_list' %}" hx-trigger="keyup changed delay:500ms"
                    hx-target="#contacts-table">
             <button class="btn btn-outline-secondary" type="submit">Suchen</button>
         </div>

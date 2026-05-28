@@ -78,6 +78,24 @@
                 Audit Log
             </a>
             {% endif %}
+             <div class="nav-section-title">CRM</div>
+             <a href="{% url 'contact_list' %}" class="nav-link {% active_nav request 'contact_list' %}">
+                <i class="ti ti-users"></i>
+                Kontakte
+            </a>
+             <div class="nav-section-title">Newsletter</div>
+              <a href="{% url 'subscriber_list' %}" class="nav-link {% active_nav request 'subscriber_list' %}">
+                <i class="ti ti-users"></i>
+                Abonnenten
+            </a>
+             <a href="{% url 'campaign_list' %}" class="nav-link {% active_nav request 'campaign_list' %}">
+                <i class="ti ti-users"></i>
+                Kampagnen
+            </a>
+              <a href="{% url 'automation_list' %}" class="nav-link {% active_nav request 'automation_list' %}">
+                <i class="ti ti-users"></i>
+                Automatisierungen
+            </a>
         </nav>
 
         <div class="sidebar-user">
