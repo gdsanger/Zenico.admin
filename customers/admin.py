@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Plan
+from .models import Plan, Customer
 
 
 @admin.register(Plan)
@@ -48,3 +48,56 @@ class PlanAdmin(admin.ModelAdmin):
             'classes': ['collapse'],
         }),
     ]
+
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    """Admin interface for Customer model."""
+
+    list_display = [
+        'company_name',
+        'slug',
+        'status',
+        'contact_email',
+        'billing_country',
+        'created_at',
+    ]
+    list_filter = ['status', 'billing_country', 'created_at']
+    search_fields = ['company_name', 'slug', 'contact_email', 'billing_email', 'vat_id']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+    fieldsets = [
+        ('Basic Information', {
+            'fields': ['id', 'slug', 'company_name', 'status', 'notes']
+        }),
+        ('Contact Information', {
+            'fields': ['contact_name', 'contact_email', 'contact_phone']
+        }),
+        ('Billing Information', {
+            'fields': [
+                'billing_email',
+                'billing_address',
+                'billing_city',
+                'billing_postal_code',
+                'billing_country',
+                'vat_id',
+            ]
+        }),
+        ('Stripe Integration', {
+            'fields': ['stripe_customer_id'],
+            'classes': ['collapse'],
+        }),
+        ('Timestamps', {
+            'fields': ['created_at', 'updated_at'],
+            'classes': ['collapse'],
+        }),
+    ]
+
+    def get_readonly_fields(self, request, obj=None):
+        """
+        Make slug readonly after initial creation to prevent accidental changes.
+        """
+        readonly = list(super().get_readonly_fields(request, obj))
+        if obj:  # Editing existing object
+            readonly.append('slug')
+        return readonly
