@@ -240,3 +240,91 @@ class Instance(models.Model):
         self.api_key = secrets.token_urlsafe(48)
         self.save(update_fields=['api_key', 'updated_at'])
         return self.api_key
+
+
+class UserLicense(models.Model):
+    """
+    UserLicense model tracking which Azure users are licensed on which instance.
+    Used as the basis for the license check API endpoint.
+    """
+
+    ROLE_CHOICES = [
+        ('project_manager', 'Project Manager'),
+        ('team_lead', 'Team Lead'),
+        ('contributor', 'Contributor'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(
+        Instance,
+        on_delete=models.CASCADE,
+        related_name='user_licenses',
+        verbose_name='instance'
+    )
+    azure_oid = models.CharField(
+        max_length=100,
+        verbose_name='Azure AD Object ID',
+        help_text='Azure AD Object ID of the user'
+    )
+    email = models.EmailField(verbose_name='email')
+    display_name = models.CharField(max_length=150, verbose_name='display name')
+    role = models.CharField(
+        max_length=20,
+        choices=ROLE_CHOICES,
+        default='contributor',
+        verbose_name='role'
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name='active',
+        help_text='Whether this license is currently active'
+    )
+    activated_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='activated at'
+    )
+    deactivated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='deactivated at'
+    )
+
+    class Meta:
+        verbose_name = 'User License'
+        verbose_name_plural = 'User Licenses'
+        ordering = ['instance', 'email']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['instance', 'azure_oid'],
+                name='unique_azure_oid_per_instance',
+                violation_error_message='This Azure user is already licensed on this instance.'
+            ),
+        ]
+
+    def __str__(self):
+        active_indicator = " [Active]" if self.is_active else " [Inactive]"
+        return f"{self.display_name} ({self.email}) - {self.instance.display_name}{active_indicator}"
+
+    def clean(self):
+        """
+        Validate user license before saving.
+        - Check that activating this license doesn't exceed instance user_seats limit
+        """
+        super().clean()
+
+        # Only validate when activating (is_active=True)
+        if self.is_active and self.instance_id:
+            # Count currently active licenses on this instance
+            active_licenses = UserLicense.objects.filter(
+                instance=self.instance,
+                is_active=True
+            ).exclude(pk=self.pk).count()
+
+            # Check against instance's user_seats allocation
+            if active_licenses >= self.instance.user_seats:
+                raise ValidationError({
+                    'is_active': (
+                        f'Cannot activate license: instance has {self.instance.user_seats} user seats, '
+                        f'and {active_licenses} are already in use.'
+                    )
+                })
