@@ -197,9 +197,8 @@ class Customer(models.Model):
     def master_instance(self):
         """
         Returns the master instance for this customer.
-        TODO: Implement when instances app is ready.
         """
-        return None
+        return self.instances.filter(is_master=True).first()
 
     @property
     def active_subscription(self):
@@ -311,13 +310,10 @@ class Subscription(models.Model):
     def used_user_seats(self):
         """
         Returns the sum of user_seats from all instances of this customer.
-        TODO: Implement when Instance model is ready.
         """
-        # When Instance model is ready, this should be:
-        # return self.customer.instances.filter(
-        #     status__in=['provisioning', 'active']
-        # ).aggregate(total=models.Sum('user_seats'))['total'] or 0
-        return 0
+        return self.customer.instances.filter(
+            status__in=['provisioning', 'active']
+        ).aggregate(total=models.Sum('user_seats'))['total'] or 0
 
     def available_user_seats(self):
         """
@@ -328,13 +324,10 @@ class Subscription(models.Model):
     def used_instance_seats(self):
         """
         Returns the count of instances with status provisioning or active.
-        TODO: Implement when Instance model is ready.
         """
-        # When Instance model is ready, this should be:
-        # return self.customer.instances.filter(
-        #     status__in=['provisioning', 'active']
-        # ).count()
-        return 0
+        return self.customer.instances.filter(
+            status__in=['provisioning', 'active']
+        ).count()
 
     def available_instance_seats(self):
         """
