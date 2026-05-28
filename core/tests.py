@@ -6,6 +6,7 @@ direct updates to AuditLog are prevented.
 """
 
 import uuid
+from decimal import Decimal
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 from customers.models import Customer
@@ -318,3 +319,213 @@ class MailServiceTests(TestCase):
         # Verify error was logged
         self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_FAILED).count(), 1)
 
+
+class StripeServiceTests(TestCase):
+    """Test suite for StripeService."""
+
+    def setUp(self):
+        """Set up test data."""
+        import os
+        os.environ['STRIPE_SECRET_KEY'] = 'sk_test_fake'
+        os.environ['STRIPE_TAX_ENABLED'] = 'true'
+
+        from customers.models import Plan
+        # Use existing plan from migration or get_or_create to avoid unique constraint error
+        self.plan, _ = Plan.objects.get_or_create(
+            name='professional',
+            defaults={
+                'display_name': 'Professional Plan',
+                'price_per_user': 19.00,
+                'price_per_instance': 5.00,
+                'price_ai_addon': 7.50,
+                'stripe_price_id_user': 'price_user_123',
+                'stripe_price_id_instance': 'price_instance_123',
+                'stripe_price_id_ai': 'price_ai_123',
+            }
+        )
+        # Update the plan to ensure stripe price IDs are set
+        if not self.plan.stripe_price_id_user:
+            self.plan.stripe_price_id_user = 'price_user_123'
+            self.plan.stripe_price_id_instance = 'price_instance_123'
+            self.plan.stripe_price_id_ai = 'price_ai_123'
+            self.plan.save()
+
+        self.customer = Customer.objects.create(
+            slug='testco',
+            company_name='Test Company',
+            contact_name='Test User',
+            contact_email='test@example.com',
+            billing_email='billing@example.com',
+            stripe_customer_id='cus_test123',
+        )
+
+    def test_create_customer_success(self):
+        """Test successful Stripe customer creation."""
+        from core.services.stripe import StripeService
+        from unittest.mock import patch, MagicMock
+
+        # Create customer without stripe_customer_id
+        new_customer = Customer.objects.create(
+            slug='newco',
+            company_name='New Company',
+            contact_name='New User',
+            contact_email='new@example.com',
+            billing_email='billing@newco.com',
+        )
+
+        with patch('stripe.Customer.create') as mock_create:
+            mock_stripe_customer = MagicMock()
+            mock_stripe_customer.id = 'cus_new123'
+            mock_create.return_value = mock_stripe_customer
+
+            stripe_customer_id = StripeService.create_customer(new_customer)
+
+            self.assertEqual(stripe_customer_id, 'cus_new123')
+            new_customer.refresh_from_db()
+            self.assertEqual(new_customer.stripe_customer_id, 'cus_new123')
+
+            # Verify audit log
+            self.assertTrue(AuditLog.objects.filter(
+                action='stripe.customer_created',
+                resource_id='cus_new123'
+            ).exists())
+
+    def test_update_customer_success(self):
+        """Test successful Stripe customer update."""
+        from core.services.stripe import StripeService
+        from unittest.mock import patch
+
+        with patch('stripe.Customer.modify') as mock_modify:
+            StripeService.update_customer(self.customer)
+
+            mock_modify.assert_called_once_with(
+                'cus_test123',
+                name='Test Company',
+                email='billing@example.com',
+            )
+
+            # Verify audit log
+            self.assertTrue(AuditLog.objects.filter(
+                action='stripe.customer_updated',
+                customer=self.customer
+            ).exists())
+
+    def test_create_subscription_with_all_items(self):
+        """Test creating subscription with user, instance, and AI addon."""
+        from core.services.stripe import StripeService
+        from unittest.mock import patch, MagicMock
+
+        with patch('stripe.Subscription.create') as mock_create:
+            mock_subscription = MagicMock()
+            mock_subscription.id = 'sub_test123'
+            mock_create.return_value = mock_subscription
+
+            result = StripeService.create_subscription(
+                customer=self.customer,
+                plan=self.plan,
+                user_seats=10,
+                instance_seats=2,
+                ai_addon=True,
+                trial_days=14,
+            )
+
+            self.assertEqual(result.id, 'sub_test123')
+
+            # Verify call arguments
+            call_kwargs = mock_create.call_args.kwargs if hasattr(mock_create.call_args, 'kwargs') else mock_create.call_args[1]
+            self.assertEqual(call_kwargs['customer'], 'cus_test123')
+            self.assertEqual(len(call_kwargs['items']), 3)  # user + instance + AI
+            self.assertEqual(call_kwargs['trial_period_days'], 14)
+            self.assertTrue(call_kwargs['automatic_tax']['enabled'])
+
+            # Verify audit log
+            self.assertTrue(AuditLog.objects.filter(
+                action=AuditAction.SUBSCRIPTION_CREATED,
+                resource_id='sub_test123'
+            ).exists())
+
+    def test_cancel_subscription_at_period_end(self):
+        """Test cancelling subscription at period end."""
+        from core.services.stripe import StripeService
+        from customers.models import Subscription
+        from unittest.mock import patch, MagicMock
+
+        subscription = Subscription.objects.create(
+            customer=self.customer,
+            plan=self.plan,
+            stripe_subscription_id='sub_test123',
+            stripe_status='active',
+            user_seats_total=10,
+            instance_seats_total=2,
+        )
+
+        with patch('stripe.Subscription.modify') as mock_modify:
+            mock_cancelled = MagicMock()
+            mock_cancelled.status = 'active'
+            mock_modify.return_value = mock_cancelled
+
+            result = StripeService.cancel_subscription(subscription, at_period_end=True)
+
+            mock_modify.assert_called_once_with(
+                'sub_test123',
+                cancel_at_period_end=True,
+            )
+
+            # Verify audit log
+            self.assertTrue(AuditLog.objects.filter(
+                action=AuditAction.SUBSCRIPTION_CANCELLED,
+                resource_id='sub_test123'
+            ).exists())
+
+    def test_sync_invoice_creates_new(self):
+        """Test syncing invoice from Stripe creates new local invoice."""
+        from core.services.stripe import StripeService
+
+        stripe_invoice_data = {
+            'id': 'in_test123',
+            'customer': 'cus_test123',
+            'subscription': None,
+            'amount_due': 19900,  # $199.00 in cents
+            'amount_paid': 19900,
+            'currency': 'usd',
+            'status': 'paid',
+            'hosted_invoice_url': 'https://stripe.com/invoice/test',
+            'invoice_pdf': 'https://stripe.com/invoice/test.pdf',
+        }
+
+        invoice = StripeService.sync_invoice(stripe_invoice_data, self.customer)
+
+        self.assertEqual(invoice.stripe_invoice_id, 'in_test123')
+        self.assertEqual(invoice.customer, self.customer)
+        self.assertEqual(invoice.amount_due, Decimal('199.00'))
+        self.assertEqual(invoice.status, 'paid')
+
+        # Verify audit log
+        self.assertTrue(AuditLog.objects.filter(
+            action='stripe.invoice_synced',
+            resource_id='in_test123'
+        ).exists())
+
+    def test_create_billing_portal_session(self):
+        """Test creating Stripe billing portal session."""
+        from core.services.stripe import StripeService
+        from unittest.mock import patch, MagicMock
+
+        with patch('stripe.billing_portal.Session.create') as mock_create:
+            mock_session = MagicMock()
+            mock_session.id = 'bps_test123'
+            mock_session.url = 'https://billing.stripe.com/session/test'
+            mock_create.return_value = mock_session
+
+            portal_url = StripeService.create_billing_portal_session(
+                self.customer,
+                'https://admin.zenico.app/billing'
+            )
+
+            self.assertEqual(portal_url, 'https://billing.stripe.com/session/test')
+
+            # Verify audit log
+            self.assertTrue(AuditLog.objects.filter(
+                action='stripe.portal_session_created',
+                resource_id='bps_test123'
+            ).exists())
