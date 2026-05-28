@@ -25,7 +25,7 @@
                     <tr>
                         <th width="40%">Kunde:</th>
                         <td>
-                            <a href="{% url 'customer_detail' instance.customer.slug %}">
+                            <a href="{% url 'ui:customer_detail' instance.customer.slug %}">
                                 {{ instance.customer.company_name }}
                             </a>
                         </td>
@@ -96,7 +96,7 @@
                                 <code>{{ instance.api_key|mask_key }}</code>
                                 <button
                                     class="btn btn-sm btn-outline-secondary ms-2"
-                                    hx-get="{% url 'instance_api_key_reveal' instance.id %}"
+                                    hx-get="{% url 'ui:instance_api_key_reveal' instance.id %}"
                                     hx-target="#api-key-value"
                                     hx-swap="innerHTML"
                                 >
@@ -106,7 +106,7 @@
                             <div id="api-key-value"></div>
                             <button
                                 class="btn btn-sm btn-warning mt-2"
-                                hx-post="{% url 'instance_api_key_regenerate' instance.id %}"
+                                hx-post="{% url 'ui:instance_api_key_regenerate' instance.id %}"
                                 hx-confirm="Möchten Sie wirklich einen neuen API Key generieren? Der alte Key wird ungültig."
                             >
                                 <i class="ti ti-refresh"></i> Key regenerieren

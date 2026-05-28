@@ -9,7 +9,7 @@
 <div class="mb-4">
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'instance_list' %}">
+            <a class="nav-link {% if not current_status %}active{% endif %}" href="{% url 'ui:instance_list' %}">
                 Alle
             </a>
         </li>
@@ -52,7 +52,7 @@
             </thead>
             <tbody>
                 {% for instance in instances %}
-                <tr onclick="window.location.href='{% url 'instance_detail' instance.id %}'">
+                <tr onclick="window.location.href='{% url 'ui:instance_detail' instance.id %}'">
                     <td>
                         <strong>{{ instance.fqdn }}</strong>
                         {% if instance.is_master %}
@@ -73,7 +73,7 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="{% url 'instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
+                        <a href="{% url 'ui:instance_detail' instance.id %}" class="btn btn-sm btn-outline-primary" onclick="event.stopPropagation();">
                             <i class="ti ti-eye"></i>
                         </a>
                     </td>

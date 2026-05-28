@@ -9,7 +9,7 @@
 <div class="mb-4">
     <ul class="nav nav-tabs">
         <li class="nav-item">
-            <a class="nav-link {% if not request.GET.unprocessed and not request.GET.failed %}active{% endif %}" href="{% url 'stripe_event_list' %}">
+            <a class="nav-link {% if not request.GET.unprocessed and not request.GET.failed %}active{% endif %}" href="{% url 'ui:stripe_event_list' %}">
                 Alle
             </a>
         </li>
@@ -46,7 +46,7 @@
                     <td>{{ event.event_type }}</td>
                     <td>
                         {% if event.customer %}
-                        <a href="{% url 'customer_detail' event.customer.slug %}">
+                        <a href="{% url 'ui:customer_detail' event.customer.slug %}">
                             {{ event.customer.company_name }}
                         </a>
                         {% else %}

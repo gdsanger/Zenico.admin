@@ -10,7 +10,7 @@
             <i class="ti ti-bolt"></i> zenico.admin
         </div>
 
-        <form method="post" action="{% url 'login' %}">
+        <form method="post" action="{% url 'ui:login' %}">
             {% csrf_token %}
 
             {% if form.non_field_errors %}

@@ -57,6 +57,8 @@ from newsletter.views import (
     automation_step_delete,
 )
 
+app_name = 'ui'
+
 urlpatterns = [
     # Auth
     path('login/', LoginView.as_view(), name='login'),

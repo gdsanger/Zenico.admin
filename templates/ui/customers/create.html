@@ -12,7 +12,7 @@
                 <h3 class="table-card-title">Kundendaten</h3>
             </div>
             <div class="p-4">
-                <form method="post" action="{% url 'customer_create' %}">
+                <form method="post" action="{% url 'ui:customer_create' %}">
                     {% csrf_token %}
 
                     {% if form.non_field_errors %}
@@ -36,7 +36,7 @@
                                 pattern="[a-z0-9]{2,10}"
                                 title="2-10 Zeichen, nur Kleinbuchstaben und Zahlen"
                                 required
-                                hx-get="{% url 'customer_check_slug' %}"
+                                hx-get="{% url 'ui:customer_check_slug' %}"
                                 hx-trigger="keyup changed delay:500ms"
                                 hx-include="[name='slug']"
                                 hx-target="#slug-feedback"
@@ -96,7 +96,7 @@
                         <button type="submit" class="btn btn-primary">
                             <i class="ti ti-check"></i> Kunde anlegen
                         </button>
-                        <a href="{% url 'customer_list' %}" class="btn btn-outline-secondary">
+                        <a href="{% url 'ui:customer_list' %}" class="btn btn-outline-secondary">
                             <i class="ti ti-x"></i> Abbrechen
                         </a>
                     </div>

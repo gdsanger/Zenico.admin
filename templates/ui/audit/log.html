@@ -7,7 +7,7 @@
 
 {% block content %}
 <div class="mb-4 d-flex justify-content-between align-items-center">
-    <form method="get" action="{% url 'audit_log_list' %}" class="row g-2">
+    <form method="get" action="{% url 'ui:audit_log_list' %}" class="row g-2">
         <div class="col-auto">
             <input
                 type="text"
@@ -24,7 +24,7 @@
         </div>
     </form>
 
-    <a href="{% url 'audit_export_csv' %}{% if current_action %}?action={{ current_action }}{% endif %}" class="btn btn-outline-success">
+    <a href="{% url 'ui:audit_export_csv' %}{% if current_action %}?action={{ current_action }}{% endif %}" class="btn btn-outline-success">
         <i class="ti ti-file-download"></i> CSV Export
     </a>
 </div>
@@ -67,7 +67,7 @@
                     </td>
                     <td>
                         {% if log.customer %}
-                        <a href="{% url 'customer_detail' log.customer.slug %}">
+                        <a href="{% url 'ui:customer_detail' log.customer.slug %}">
                             {{ log.customer.company_name }}
                         </a>
                         {% else %}
