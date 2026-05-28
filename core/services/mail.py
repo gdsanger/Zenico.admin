@@ -1,0 +1,252 @@
+"""
+MailService - Email sending via Microsoft Graph API.
+
+Sends emails using Azure AD Client Credentials Flow with a shared mailbox.
+All email operations are logged via AuditService.
+"""
+
+import logging
+import os
+from typing import Optional, Union
+from django.template.loader import render_to_string
+from django.conf import settings
+import msal
+import requests
+
+from core.services.audit import AuditService, AuditAction
+
+logger = logging.getLogger(__name__)
+
+
+class MailService:
+    """
+    Service for sending emails via Microsoft Graph API using MSAL.
+
+    Configuration (environment variables):
+        AZURE_TENANT_ID: Azure AD tenant ID
+        AZURE_CLIENT_ID: Application (client) ID
+        AZURE_CLIENT_SECRET: Client secret
+        MAIL_FROM_ADDRESS: Email address to send from (e.g., admin@zenico.app)
+        MAIL_FROM_NAME: Display name for sender (e.g., Zenico Admin)
+    """
+
+    _msal_app: Optional[msal.ConfidentialClientApplication] = None
+
+    @classmethod
+    def _get_msal_app(cls) -> msal.ConfidentialClientApplication:
+        """Get or create MSAL confidential client application."""
+        if cls._msal_app is None:
+            tenant_id = os.getenv('AZURE_TENANT_ID')
+            client_id = os.getenv('AZURE_CLIENT_ID')
+            client_secret = os.getenv('AZURE_CLIENT_SECRET')
+
+            if not all([tenant_id, client_id, client_secret]):
+                raise ValueError(
+                    'Missing required Azure AD configuration. '
+                    'Ensure AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET are set.'
+                )
+
+            authority = f'https://login.microsoftonline.com/{tenant_id}'
+            cls._msal_app = msal.ConfidentialClientApplication(
+                client_id,
+                authority=authority,
+                client_credential=client_secret,
+            )
+
+        return cls._msal_app
+
+    @classmethod
+    def _get_access_token(cls) -> str:
+        """Acquire access token for Microsoft Graph API."""
+        app = cls._get_msal_app()
+        scopes = ['https://graph.microsoft.com/.default']
+
+        result = app.acquire_token_for_client(scopes=scopes)
+
+        if 'access_token' in result:
+            return result['access_token']
+        else:
+            error = result.get('error', 'unknown_error')
+            error_description = result.get('error_description', 'No description available')
+            raise Exception(f'Failed to acquire access token: {error} - {error_description}')
+
+    @classmethod
+    def send(
+        cls,
+        to: Union[str, list[str]],
+        subject: str,
+        html_body: str,
+        text_body: str = "",
+        cc: Optional[list[str]] = None,
+        reply_to: Optional[str] = None,
+    ) -> bool:
+        """
+        Send an email via Microsoft Graph API.
+
+        Args:
+            to: Recipient email address or list of addresses
+            subject: Email subject
+            html_body: HTML email body
+            text_body: Plain text email body (optional)
+            cc: List of CC recipients (optional)
+            reply_to: Reply-to email address (optional)
+
+        Returns:
+            bool: True if email was sent successfully, False otherwise
+
+        Side effects:
+            Creates an AuditLog entry (mail.sent or mail.failed)
+        """
+        from_address = os.getenv('MAIL_FROM_ADDRESS', 'admin@zenico.app')
+        from_name = os.getenv('MAIL_FROM_NAME', 'Zenico Admin')
+
+        # Normalize to list
+        if isinstance(to, str):
+            to = [to]
+
+        # Build recipient list
+        recipients = [{'emailAddress': {'address': addr}} for addr in to]
+        cc_recipients = [{'emailAddress': {'address': addr}} for addr in (cc or [])]
+
+        # Build message
+        message = {
+            'message': {
+                'subject': subject,
+                'body': {
+                    'contentType': 'HTML',
+                    'content': html_body,
+                },
+                'from': {
+                    'emailAddress': {
+                        'address': from_address,
+                        'name': from_name,
+                    }
+                },
+                'toRecipients': recipients,
+            },
+            'saveToSentItems': 'true',
+        }
+
+        if cc_recipients:
+            message['message']['ccRecipients'] = cc_recipients
+
+        if reply_to:
+            message['message']['replyTo'] = [{'emailAddress': {'address': reply_to}}]
+
+        try:
+            # Get access token
+            token = cls._get_access_token()
+
+            # Send email via Graph API
+            url = f'https://graph.microsoft.com/v1.0/users/{from_address}/sendMail'
+            headers = {
+                'Authorization': f'Bearer {token}',
+                'Content-Type': 'application/json',
+            }
+
+            response = requests.post(url, json=message, headers=headers, timeout=30)
+
+            if response.status_code == 202:
+                # Success
+                AuditService.log(
+                    action=AuditAction.MAIL_SENT,
+                    resource_type='Email',
+                    resource_id=subject,
+                    after={
+                        'to': to,
+                        'cc': cc,
+                        'subject': subject,
+                    },
+                    note=f'Email sent to {", ".join(to)}',
+                )
+                logger.info(f'Email sent successfully to {", ".join(to)}: {subject}')
+                return True
+            else:
+                # Failure
+                error_msg = f'HTTP {response.status_code}: {response.text}'
+                AuditService.log(
+                    action=AuditAction.MAIL_FAILED,
+                    resource_type='Email',
+                    resource_id=subject,
+                    after={
+                        'to': to,
+                        'cc': cc,
+                        'subject': subject,
+                        'error': error_msg,
+                    },
+                    note=f'Failed to send email to {", ".join(to)}: {error_msg}',
+                )
+                logger.error(f'Failed to send email: {error_msg}')
+                return False
+
+        except Exception as e:
+            # Exception during send
+            error_msg = str(e)
+            AuditService.log(
+                action=AuditAction.MAIL_FAILED,
+                resource_type='Email',
+                resource_id=subject,
+                after={
+                    'to': to,
+                    'cc': cc,
+                    'subject': subject,
+                    'error': error_msg,
+                },
+                note=f'Exception while sending email to {", ".join(to)}: {error_msg}',
+            )
+            logger.exception(f'Exception while sending email: {error_msg}')
+            return False
+
+    @classmethod
+    def send_template(
+        cls,
+        to: Union[str, list[str]],
+        template: str,
+        context: dict,
+        subject_override: Optional[str] = None,
+    ) -> bool:
+        """
+        Render a Django template and send it as an email.
+
+        Templates should be located in templates/mail/<template>.html
+        The template can define a subject variable or use subject_override.
+
+        Args:
+            to: Recipient email address or list of addresses
+            template: Template name (without path, e.g., 'welcome')
+            context: Context dict for template rendering
+            subject_override: Override the subject from template (optional)
+
+        Returns:
+            bool: True if email was sent successfully, False otherwise
+        """
+        template_path = f'mail/{template}.html'
+
+        try:
+            # Render template
+            html_body = render_to_string(template_path, context)
+
+            # Extract subject from context or use override
+            subject = subject_override or context.get('subject', 'Zenico Admin Notification')
+
+            # Send email
+            return cls.send(
+                to=to,
+                subject=subject,
+                html_body=html_body,
+            )
+
+        except Exception as e:
+            logger.exception(f'Failed to render template {template_path}: {e}')
+            AuditService.log(
+                action=AuditAction.MAIL_FAILED,
+                resource_type='Email',
+                resource_id=template,
+                after={
+                    'to': to if isinstance(to, list) else [to],
+                    'template': template,
+                    'error': str(e),
+                },
+                note=f'Failed to render email template {template}: {str(e)}',
+            )
+            return False

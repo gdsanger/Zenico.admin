@@ -169,3 +169,152 @@ class AuditServiceTests(TestCase):
 
         self.assertNotEqual(log1.id, log2.id)
         self.assertEqual(AuditLog.objects.count(), 2)
+
+
+class MailServiceTests(TestCase):
+    """Test suite for MailService."""
+
+    def setUp(self):
+        """Set up test data."""
+        # Set required environment variables for tests
+        import os
+        os.environ['AZURE_TENANT_ID'] = 'test-tenant-id'
+        os.environ['AZURE_CLIENT_ID'] = 'test-client-id'
+        os.environ['AZURE_CLIENT_SECRET'] = 'test-client-secret'
+        os.environ['MAIL_FROM_ADDRESS'] = 'test@zenico.app'
+        os.environ['MAIL_FROM_NAME'] = 'Test Zenico'
+
+    def test_send_with_mocked_graph_api(self):
+        """Test that send() calls Graph API correctly."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+
+        # Mock the MSAL token acquisition
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            # Mock the requests.post call
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 202
+                mock_post.return_value = mock_response
+
+                result = MailService.send(
+                    to='recipient@example.com',
+                    subject='Test Subject',
+                    html_body='<p>Test body</p>',
+                )
+
+                self.assertTrue(result)
+                # Verify requests.post was called
+                mock_post.assert_called_once()
+                call_args = mock_post.call_args
+                self.assertIn('https://graph.microsoft.com', call_args[0][0])
+
+                # Verify audit log was created
+                self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 1)
+
+    def test_send_failure_logs_error(self):
+        """Test that failed send() logs error."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 400
+                mock_response.text = 'Bad Request'
+                mock_post.return_value = mock_response
+
+                result = MailService.send(
+                    to='recipient@example.com',
+                    subject='Test Subject',
+                    html_body='<p>Test body</p>',
+                )
+
+                self.assertFalse(result)
+                # Verify audit log was created for failure
+                self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_FAILED).count(), 1)
+
+    def test_send_exception_logs_error(self):
+        """Test that exception during send() logs error."""
+        from core.services.mail import MailService
+        from unittest.mock import patch
+
+        with patch.object(MailService, '_get_access_token', side_effect=Exception('Token error')):
+            result = MailService.send(
+                to='recipient@example.com',
+                subject='Test Subject',
+                html_body='<p>Test body</p>',
+            )
+
+            self.assertFalse(result)
+            # Verify audit log was created for failure
+            failed_logs = AuditLog.objects.filter(action=AuditAction.MAIL_FAILED)
+            self.assertEqual(failed_logs.count(), 1)
+            self.assertIn('Token error', failed_logs.first().after['error'])
+
+    def test_send_with_multiple_recipients(self):
+        """Test sending to multiple recipients."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 202
+                mock_post.return_value = mock_response
+
+                result = MailService.send(
+                    to=['recipient1@example.com', 'recipient2@example.com'],
+                    subject='Test Subject',
+                    html_body='<p>Test body</p>',
+                )
+
+                self.assertTrue(result)
+                # Verify the call included both recipients
+                call_args = mock_post.call_args
+                message = call_args[1]['json']['message']
+                self.assertEqual(len(message['toRecipients']), 2)
+
+    def test_send_template_renders_and_sends(self):
+        """Test that send_template() renders template and sends."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 202
+                mock_post.return_value = mock_response
+
+                result = MailService.send_template(
+                    to='recipient@example.com',
+                    template='welcome',
+                    context={
+                        'contact_name': 'John Doe',
+                        'company_name': 'Test Company',
+                        'slug': 'testco',
+                        'plan_name': 'Professional',
+                        'user_seats': 10,
+                        'instance_seats': 2,
+                    },
+                    subject_override='Welcome to Zenico',
+                )
+
+                self.assertTrue(result)
+                # Verify email was sent
+                self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 1)
+
+    def test_send_template_with_invalid_template(self):
+        """Test that send_template() handles template errors."""
+        from core.services.mail import MailService
+
+        result = MailService.send_template(
+            to='recipient@example.com',
+            template='nonexistent_template',
+            context={},
+        )
+
+        self.assertFalse(result)
+        # Verify error was logged
+        self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_FAILED).count(), 1)
+
