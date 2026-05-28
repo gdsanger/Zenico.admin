@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+
+{% block title %}{{ sequence.name }} | Automatisierungen{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'ui:automation_list' %}" class="text-decoration-none">
+                <i class="ti ti-arrow-left"></i> Automatisierungen
+            </a>
+            <h1 class="mt-2">{{ sequence.name }}</h1>
+            <p class="text-muted mb-0">Trigger: {{ sequence.get_trigger_display }}</p>
+        </div>
+        <div>
+            <div class="form-check form-switch" style="display: inline-block;">
+                <input class="form-check-input" type="checkbox" role="switch" id="activeToggle"
+                       {% if sequence.is_active %}checked{% endif %}
+                       hx-post="{% url 'ui:automation_toggle' sequence.id %}"
+                       hx-swap="none">
+                <label class="form-check-label" for="activeToggle">
+                    {% if sequence.is_active %}
+                    <span class="badge bg-success">● Aktiv</span>
+                    {% else %}
+                    <span class="badge bg-secondary">○ Inaktiv</span>
+                    {% endif %}
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">STEPS</h5>
+            <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addStepModal">
+                <i class="ti ti-plus"></i> Step
+            </button>
+        </div>
+        <div class="card-body">
+            {% if sequence.steps.exists %}
+            <div class="steps-timeline" id="steps-list">
+                {% for step in sequence.steps.all %}
+                <div class="step-item border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">Step {{ step.order }} — {% if step.delay_days == 0 %}Sofort{% else %}nach {{ step.delay_days }} Tag(en){% endif %}</h6>
+                            <p class="mb-1"><strong>Betreff:</strong> {{ step.subject }}</p>
+                            {% if step.preview_text %}
+                            <p class="mb-1 text-muted"><small>{{ step.preview_text }}</small></p>
+                            {% endif %}
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                    data-bs-toggle="modal" data-bs-target="#editStepModal{{ step.id }}">
+                                <i class="ti ti-edit"></i> Bearbeiten
+                            </button>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                    hx-delete="{% url 'ui:automation_step_delete' sequence.id step.id %}"
+                                    hx-confirm="Step wirklich löschen?"
+                                    hx-target="closest .step-item"
+                                    hx-swap="outerHTML">
+                                <i class="ti ti-trash"></i> Löschen
+                            </button>
+                        </div>
+                    </div>
+
+                    {% if not forloop.last %}
+                    <div class="text-center mt-3 mb-2">
+                        <i class="ti ti-arrow-down text-muted"></i>
+                        <small class="text-muted">+{{ sequence.steps.all|slice:"forloop.counter:"|first.delay_days }} Tag(e)</small>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Edit Step Modal -->
+                <div class="modal fade" id="editStepModal{{ step.id }}" tabindex="-1">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <form hx-post="{% url 'ui:automation_step_edit' sequence.id step.id %}">
+                                {% csrf_token %}
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Step bearbeiten</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label for="delay_days_{{ step.id }}" class="form-label">Verzögerung (Tage)</label>
+                                        <input type="number" name="delay_days" id="delay_days_{{ step.id }}" class="form-control" value="{{ step.delay_days }}" min="0" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="subject_{{ step.id }}" class="form-label">Betreff</label>
+                                        <input type="text" name="subject" id="subject_{{ step.id }}" class="form-control" value="{{ step.subject }}" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="preview_text_{{ step.id }}" class="form-label">Vorschautext</label>
+                                        <input type="text" name="preview_text" id="preview_text_{{ step.id }}" class="form-control" value="{{ step.preview_text }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="html_body_{{ step.id }}" class="form-label">HTML-Inhalt</label>
+                                        <textarea name="html_body" id="html_body_{{ step.id }}" class="form-control" rows="10" required>{{ step.html_body }}</textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                                    <button type="submit" class="btn btn-primary">Speichern</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-center text-muted">Noch keine Steps definiert</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Add Step Modal -->
+<div class="modal fade" id="addStepModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:automation_step_create' sequence.id %}" hx-target="#steps-list">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title">Neuen Step hinzufügen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="delay_days" class="form-label">Verzögerung (Tage)</label>
+                        <input type="number" name="delay_days" id="delay_days" class="form-control" value="0" min="0" required>
+                        <div class="form-text">0 = Sofort, oder Anzahl Tage nach vorherigem Step</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Betreff <span class="text-danger">*</span></label>
+                        <input type="text" name="subject" id="subject" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="preview_text" class="form-label">Vorschautext</label>
+                        <input type="text" name="preview_text" id="preview_text" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="html_body" class="form-label">HTML-Inhalt <span class="text-danger">*</span></label>
+                        <textarea name="html_body" id="html_body" class="form-control" rows="10" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="text_body" class="form-label">Plaintext-Fallback</label>
+                        <textarea name="text_body" id="text_body" class="form-control" rows="5"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Hinzufügen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -7,6 +7,9 @@
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1>Kontakte</h1>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createContactModal">
+            <i class="ti ti-plus"></i> Manuell anlegen
+        </button>
     </div>
 
     <!-- Filter Tabs -->
@@ -41,57 +44,32 @@
     <!-- Search -->
     <form method="get" class="mb-4">
         <div class="input-group">
-            <input type="text" name="search" class="form-control" placeholder="Nach Name, E-Mail oder Firma suchen..."
-                   value="{{ search_query }}" hx-get="{% url 'contact_list' %}" hx-trigger="keyup changed delay:500ms"
-                   hx-target="#contacts-table">
-            <button class="btn btn-outline-secondary" type="submit">Suchen</button>
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" name="q" class="form-control" placeholder="Name, E-Mail, Firma..."
+                   value="{{ search_query }}"
+                   hx-get="{% url 'ui:contact_list' %}"
+                   hx-trigger="keyup changed delay:300ms"
+                   hx-target="#contact-rows"
+                   hx-include="[name='status']">
+            <input type="hidden" name="status" value="{{ current_status }}">
         </div>
     </form>
 
     <!-- Contacts Table -->
-    <div id="contacts-table" class="table-responsive">
+    <div class="table-responsive">
         <table class="table table-hover">
             <thead>
                 <tr>
                     <th>Name</th>
                     <th>Firma</th>
-                    <th>E-Mail</th>
                     <th>Quelle</th>
                     <th>Status</th>
-                    <th>Newsletter</th>
+                    <th>NL</th>
                     <th>Erstellt</th>
                 </tr>
             </thead>
-            <tbody>
-                {% for contact in contacts %}
-                <tr onclick="window.location='{% url 'ui:contact_detail' contact.id %}';" style="cursor: pointer;">
-                    <td>{{ contact.full_name }}</td>
-                    <td>{{ contact.company|default:"-" }}</td>
-                    <td>{{ contact.email }}</td>
-                    <td>
-                        {% if contact.source == 'web_contact' %}
-                        <span class="badge bg-info">Web</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Manuell</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% include "ui/crm/partials/status_badge.html" %}
-                    </td>
-                    <td>
-                        {% if contact.newsletter_consent %}
-                        <i class="bi bi-check-circle text-success"></i>
-                        {% else %}
-                        <i class="bi bi-x-circle text-muted"></i>
-                        {% endif %}
-                    </td>
-                    <td>{{ contact.created_at|date:"d.m.Y H:i" }}</td>
-                </tr>
-                {% empty %}
-                <tr>
-                    <td colspan="7" class="text-center text-muted">Keine Kontakte gefunden</td>
-                </tr>
-                {% endfor %}
+            <tbody id="contact-rows">
+                {% include "ui/crm/partials/contact_rows.html" %}
             </tbody>
         </table>
     </div>
@@ -116,5 +94,63 @@
         </ul>
     </nav>
     {% endif %}
+</div>
+
+<!-- Create Contact Modal -->
+<div class="modal fade" id="createContactModal" tabindex="-1" aria-labelledby="createContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form hx-post="{% url 'ui:contact_create' %}" hx-target="#contact-rows" hx-swap="afterbegin">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createContactModalLabel">Kontakt manuell anlegen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="salutation" class="form-label">Anrede (optional)</label>
+                        <select name="salutation" id="salutation" class="form-select">
+                            <option value="">-</option>
+                            <option value="Herr">Herr</option>
+                            <option value="Frau">Frau</option>
+                            <option value="Divers">Divers</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="first_name" class="form-label">Vorname <span class="text-danger">*</span></label>
+                        <input type="text" name="first_name" id="first_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="last_name" class="form-label">Nachname <span class="text-danger">*</span></label>
+                        <input type="text" name="last_name" id="last_name" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail <span class="text-danger">*</span></label>
+                        <input type="email" name="email" id="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="phone" class="form-label">Telefon (optional)</label>
+                        <input type="text" name="phone" id="phone" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="company" class="form-label">Firma (optional)</label>
+                        <input type="text" name="company" id="company" class="form-control">
+                    </div>
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Nachricht / Notiz (optional)</label>
+                        <textarea name="message" id="message" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" name="newsletter_consent" id="newsletter_consent" class="form-check-input">
+                        <label for="newsletter_consent" class="form-check-label">Newsletter-Zustimmung</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
 </div>
 {% endblock %}

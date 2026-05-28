@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if object.pk %}{{ object.name }} bearbeiten{% else %}Neue Sequenz{% endif %} | Automatisierungen{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>{% if object.pk %}Sequenz bearbeiten{% else %}Neue Sequenz erstellen{% endif %}</h1>
+        <a href="{% url 'ui:automation_list' %}" class="btn btn-secondary">Zurück</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                {% bootstrap_form form %}
+                <button type="submit" class="btn btn-primary">Speichern</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

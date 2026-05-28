@@ -96,6 +96,19 @@
                         <dt class="col-sm-4">Erstellt:</dt>
                         <dd class="col-sm-8">{{ contact.created_at|date:"d.m.Y H:i" }}</dd>
 
+                        <dt class="col-sm-4">Zuständig:</dt>
+                        <dd class="col-sm-8">
+                            <form hx-post="{% url 'ui:contact_assign' contact.id %}" hx-swap="none">
+                                {% csrf_token %}
+                                <select name="admin_id" class="form-select form-select-sm" hx-post="{% url 'ui:contact_assign' contact.id %}" hx-trigger="change">
+                                    <option value="">Nicht zugewiesen</option>
+                                    {% for admin in admins %}
+                                    <option value="{{ admin.id }}" {% if contact.assigned_to.id == admin.id %}selected{% endif %}>{{ admin.email }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                        </dd>
+
                         {% if contact.converted_to %}
                         <dt class="col-sm-4">Konvertiert zu:</dt>
                         <dd class="col-sm-8">
@@ -107,6 +120,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Original Message Section (if exists) -->
+    {% if contact.message %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Originalnachricht</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-0">{{ contact.message }}</p>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Notes Section -->
     <div class="card">

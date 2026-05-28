@@ -1,0 +1,50 @@
+{% for subscriber in subscribers %}
+<tr>
+    <td>{{ subscriber.email }}</td>
+    <td>{{ subscriber.full_name|default:"—" }}</td>
+    <td>
+        {% if subscriber.source == 'web_form' %}
+        <span class="badge bg-info">Web</span>
+        {% elif subscriber.source == 'contact_form' %}
+        <span class="badge bg-info">Kontaktformular</span>
+        {% elif subscriber.source == 'manual' %}
+        <span class="badge bg-secondary">Manuell</span>
+        {% else %}
+        <span class="badge bg-light text-dark">API</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if subscriber.confirmed_at %}
+        <i class="ti ti-check text-success"></i> {{ subscriber.confirmed_at|date:"d.m.Y" }}
+        {% else %}
+        —
+        {% endif %}
+    </td>
+    <td>
+        {% if subscriber.status == 'active' %}
+        <span class="badge bg-success">Aktiv</span>
+        {% elif subscriber.status == 'unsubscribed' %}
+        <span class="badge bg-secondary">Abgemeldet</span>
+        {% elif subscriber.status == 'bounced' %}
+        <span class="badge bg-danger">Bounced</span>
+        {% elif subscriber.status == 'complained' %}
+        <span class="badge bg-warning">Complained</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if subscriber.status == 'active' %}
+        <button class="btn btn-sm btn-outline-danger"
+                hx-post="{% url 'ui:subscriber_deactivate' subscriber.id %}"
+                hx-confirm="Abonnement wirklich deaktivieren?"
+                hx-target="closest tr"
+                hx-swap="outerHTML">
+            <i class="ti ti-user-minus"></i>
+        </button>
+        {% endif %}
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="6" class="text-center text-muted">Keine Abonnenten gefunden</td>
+</tr>
+{% endfor %}

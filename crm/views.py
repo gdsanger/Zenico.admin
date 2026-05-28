@@ -33,13 +33,13 @@ class ContactListView(ListView):
         queryset = Contact.objects.select_related('assigned_to', 'converted_to').order_by('-created_at')
 
         # Search
-        search = self.request.GET.get('search', '')
-        if search:
+        q = self.request.GET.get('q', '')
+        if q:
             queryset = queryset.filter(
-                Q(first_name__icontains=search) |
-                Q(last_name__icontains=search) |
-                Q(email__icontains=search) |
-                Q(company__icontains=search)
+                Q(first_name__icontains=q) |
+                Q(last_name__icontains=q) |
+                Q(email__icontains=q) |
+                Q(company__icontains=q)
             )
 
         # Filter by status
@@ -51,7 +51,7 @@ class ContactListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['search_query'] = self.request.GET.get('search', '')
+        context['search_query'] = self.request.GET.get('q', '')
         context['current_status'] = self.request.GET.get('status', '')
 
         # Count by status for filter tabs
@@ -64,6 +64,12 @@ class ContactListView(ListView):
         }
 
         return context
+
+    def render_to_response(self, context, **response_kwargs):
+        # If HTMX request, return only the rows partial
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, 'ui/crm/partials/contact_rows.html', context)
+        return super().render_to_response(context, **response_kwargs)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -83,6 +89,10 @@ class ContactDetailView(DetailView):
 
         # Get notes
         context['notes'] = contact.contact_notes.select_related('author').order_by('-created_at')
+
+        # Get available admins for assignment
+        from accounts.models import AdminUser
+        context['admins'] = AdminUser.objects.filter(role__in=['superadmin', 'support']).order_by('email')
 
         return context
 
@@ -222,4 +232,106 @@ class ConvertToCustomerView(CreateView):
         )
 
         return redirect('ui:customer-detail', slug=customer.slug)
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def create_contact(request):
+    """
+    Create a contact manually via HTMX.
+    """
+    first_name = request.POST.get('first_name', '').strip()
+    last_name = request.POST.get('last_name', '').strip()
+    email = request.POST.get('email', '').strip()
+    phone = request.POST.get('phone', '').strip()
+    company = request.POST.get('company', '').strip()
+    message = request.POST.get('message', '').strip()
+    salutation = request.POST.get('salutation', '').strip()
+    newsletter_consent = request.POST.get('newsletter_consent') == 'on'
+
+    if not first_name or not last_name or not email:
+        return JsonResponse({'error': 'First name, last name, and email are required'}, status=400)
+
+    # Create contact
+    contact = Contact.objects.create(
+        source='manual',
+        status='new',
+        salutation=salutation,
+        first_name=first_name,
+        last_name=last_name,
+        email=email,
+        phone=phone,
+        company=company,
+        message=message,
+        newsletter_consent=newsletter_consent,
+        assigned_to=request.user,
+    )
+
+    # Create system note
+    ContactNote.objects.create(
+        contact=contact,
+        author=None,  # System note
+        note='Kontakt manuell erstellt.'
+    )
+
+    # Log audit
+    AuditService.log(
+        action=AuditAction.CONTACT_CREATED,
+        resource_type='Contact',
+        resource_id=str(contact.id),
+        actor_email=request.user.email,
+        after={
+            'email': contact.email,
+            'name': contact.full_name,
+            'source': 'manual',
+        },
+        note=f'Contact {contact.email} manually created'
+    )
+
+    # Return rendered row HTML
+    return render(request, 'ui/crm/partials/contact_rows.html', {'contacts': [contact]})
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def assign_contact(request, contact_id):
+    """
+    Assign contact to admin user via HTMX.
+    """
+    contact = get_object_or_404(Contact, id=contact_id)
+
+    admin_id = request.POST.get('admin_id', '').strip()
+
+    if admin_id:
+        from accounts.models import AdminUser
+        admin = get_object_or_404(AdminUser, id=admin_id)
+        contact.assigned_to = admin
+    else:
+        contact.assigned_to = None
+
+    contact.save()
+
+    # Log audit
+    AuditService.log(
+        action=AuditAction.CONTACT_UPDATED,
+        resource_type='Contact',
+        resource_id=str(contact.id),
+        actor_email=request.user.email,
+        after={'assigned_to': admin.email if admin_id else None},
+        note=f'Contact assigned to {admin.email if admin_id else "nobody"}'
+    )
+
+    return JsonResponse({'success': True, 'assigned_to': admin.email if admin_id else None})
+
+
+@login_required
+@role_required('superadmin', 'support')
+def get_note_form(request, contact_id):
+    """
+    Return note form partial via HTMX.
+    """
+    contact = get_object_or_404(Contact, id=contact_id)
+    return render(request, 'ui/crm/partials/note_form.html', {'contact': contact})
 

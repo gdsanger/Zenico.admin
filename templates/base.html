@@ -78,24 +78,28 @@
                 Audit Log
             </a>
             {% endif %}
-             <div class="nav-section-title">CRM</div>
-             <a href="{% url 'contact_list' %}" class="nav-link {% active_nav request 'contact_list' %}">
-                <i class="ti ti-users"></i>
+
+            {% if user.role in 'superadmin,support' %}
+            <div class="nav-section-title">CRM</div>
+            <a href="{% url 'ui:contact_list' %}" class="nav-link {% active_nav request 'contact_list' %}">
+                <i class="ti ti-address-book"></i>
                 Kontakte
             </a>
-             <div class="nav-section-title">Newsletter</div>
-              <a href="{% url 'subscriber_list' %}" class="nav-link {% active_nav request 'subscriber_list' %}">
-                <i class="ti ti-users"></i>
+
+            <div class="nav-section-title">Newsletter</div>
+            <a href="{% url 'ui:subscriber_list' %}" class="nav-link {% active_nav request 'subscriber_list' %}">
+                <i class="ti ti-mail"></i>
                 Abonnenten
             </a>
-             <a href="{% url 'campaign_list' %}" class="nav-link {% active_nav request 'campaign_list' %}">
-                <i class="ti ti-users"></i>
+            <a href="{% url 'ui:campaign_list' %}" class="nav-link {% active_nav request 'campaign_list' %}">
+                <i class="ti ti-send"></i>
                 Kampagnen
             </a>
-              <a href="{% url 'automation_list' %}" class="nav-link {% active_nav request 'automation_list' %}">
-                <i class="ti ti-users"></i>
+            <a href="{% url 'ui:automation_list' %}" class="nav-link {% active_nav request 'automation_list' %}">
+                <i class="ti ti-robot"></i>
                 Automatisierungen
             </a>
+            {% endif %}
         </nav>
 
         <div class="sidebar-user">
