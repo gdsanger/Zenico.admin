@@ -2,7 +2,7 @@ from django.db import transaction
 from django.utils import timezone
 from .models import Customer, Subscription, Plan
 from instances.models import Instance
-from audit.models import AuditLog
+from core.services.audit import AuditService, AuditAction
 
 
 class CustomerService:
@@ -93,12 +93,11 @@ class CustomerService:
             )
 
             # Step 4: Create AuditLog entry
-            AuditLog.objects.create(
-                customer=customer,
-                actor_email='system',
-                action='customer.created',
+            AuditService.log(
+                action=AuditAction.CUSTOMER_CREATED,
                 resource_type='Customer',
                 resource_id=str(customer.id),
+                customer=customer,
                 after={
                     'slug': customer.slug,
                     'company_name': customer.company_name,

@@ -9,6 +9,7 @@ from .models import Plan, Customer, Subscription
 from .services import CustomerService
 from instances.models import Instance
 from audit.models import AuditLog
+from core.services.audit import AuditService
 
 
 class PlanModelTest(TestCase):
@@ -909,8 +910,8 @@ class CustomerServiceTest(TestCase):
 
     def test_create_customer_rollback_on_audit_log_failure(self):
         """Test rollback when audit log creation fails."""
-        # Mock AuditLog.objects.create to raise an exception
-        with patch.object(AuditLog.objects, 'create', side_effect=Exception('Audit log failed')):
+        # Mock AuditService.log to raise an exception
+        with patch.object(AuditService, 'log', side_effect=Exception('Audit log failed')):
             with self.assertRaises(Exception) as context:
                 CustomerService.create_customer(
                     slug='auditfail',
