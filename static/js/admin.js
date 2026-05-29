@@ -1,7 +1,18 @@
 // Zenico Admin JavaScript
 // Minimal JS helpers for HTMX interactions
 
+// Configure HTMX to include CSRF token in all requests
 document.addEventListener('DOMContentLoaded', function() {
+    // Get CSRF token from meta tag
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+
+    if (csrfToken) {
+        // Configure HTMX to include CSRF token in all requests
+        document.body.addEventListener('htmx:configRequest', function(evt) {
+            evt.detail.headers['X-CSRFToken'] = csrfToken;
+        });
+    }
+
     // Auto-hide alerts after 5 seconds
     const alerts = document.querySelectorAll('.alert:not(.alert-permanent)');
     alerts.forEach(function(alert) {
