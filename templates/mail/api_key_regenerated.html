@@ -11,11 +11,33 @@
   der API-Key Ihrer Zenico-Instanz wurde erfolgreich erneuert.
 </p>
 
-{% include "mail/components/_warning_box.html" with content="<strong>⚠️ Wichtig:</strong> Der alte API-Key ist ab sofort ungültig.<br><br>Bitte aktualisieren Sie Ihre Deployment-Scripts und Integrationen mit dem neuen Key." %}
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#FEF3C7"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #F59E0B;
+               font-size:13px;color:#92400E;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      <strong>⚠️ Wichtig:</strong> Der alte API-Key ist ab sofort ungültig.<br><br>
+      Bitte aktualisieren Sie Ihre Deployment-Scripts und Integrationen mit dem neuen Key.
+    </td>
+  </tr>
+</table>
 
-{% include "mail/components/_info_box.html" with content="<strong>Betroffene Instanz:</strong><br><br><strong>Instanz-Name:</strong> "|add:instance_name|add:"<br><strong>Instanz-URL:</strong> <a href=\""|add:instance_url|add:"\" style=\"color:#2E9A9A;text-decoration:none;\">"|add:instance_url|add:"</a><br><strong>Neuer API-Key:</strong> <code style=\"background:#E5E7EB;padding:2px 6px;border-radius:3px;font-family:monospace;\">"|add:api_key|add:"</code>" %}
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#F4F6F8"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #2E9A9A;
+               font-size:13px;color:#6B7280;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      <strong>Betroffene Instanz:</strong><br><br>
+      <strong>Instanz-Name:</strong> {{ instance_name }}<br>
+      <strong>Instanz-URL:</strong> <a href="{{ instance_url }}" style="color:#2E9A9A;text-decoration:none;">{{ instance_url }}</a><br>
+      <strong>Neuer API-Key:</strong> <code style="background:#E5E7EB;padding:2px 6px;border-radius:3px;font-family:monospace;">{{ api_key }}</code>
+    </td>
+  </tr>
+</table>
 
-{% include "mail/components/_button.html" with url=admin_base_url|add:"/instances/"|add:instance_id|add:"/" label="Zum Admin →" %}
+{% include "mail/components/_button.html" with url=admin_url label="Zum Admin →" %}
 
 <p style="margin:0 0 15px 0;">
   Mit freundlichen Grüßen<br>
