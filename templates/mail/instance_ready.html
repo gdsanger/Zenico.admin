@@ -1,0 +1,42 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  🎉 Ihre Zenico-Instanz ist bereit!
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  gute Nachrichten — Ihre <strong style="color:#2E9A9A;">Zenico-Instanz</strong> wurde erfolgreich eingerichtet und ist jetzt einsatzbereit!
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#F4F6F8"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #2E9A9A;
+               font-size:13px;color:#6B7280;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      <strong>Ihre Instanz-Daten:</strong><br><br>
+      <strong>Instanz-Name:</strong> {{ instance_name }}<br>
+      <strong>Instanz-URL:</strong> <a href="{{ instance_url }}" style="color:#2E9A9A;text-decoration:none;">{{ instance_url }}</a><br>
+      <strong>API-Key:</strong> <code style="background:#E5E7EB;padding:2px 6px;border-radius:3px;font-family:monospace;">{{ api_key }}</code>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 15px 0;">
+  Sie können sich jetzt mit Ihren Azure AD-Zugangsdaten anmelden und Ihre Mitarbeiter lizenzieren.
+</p>
+
+{% include "mail/components/_button.html" with url=instance_url label="Jetzt starten →" %}
+
+<p style="margin:0 0 15px 0;">
+  Bei Fragen zur Konfiguration oder Nutzung Ihrer Instanz stehen wir Ihnen gerne zur Verfügung. Weitere Informationen finden Sie auch in unserer Dokumentation.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

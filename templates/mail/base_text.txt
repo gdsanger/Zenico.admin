@@ -1,0 +1,7 @@
+{% block content %}{% endblock %}
+
+────────────────────────────────────────────────────────
+© {{ current_year }} Zenico. Alle Rechte vorbehalten.
+Impressum: {{ frontend_base_url }}/impressum/
+Datenschutz: {{ frontend_base_url }}/datenschutz/
+{% block footer_extra %}{% endblock %}

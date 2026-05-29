@@ -1,0 +1,22 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Bitte bestätigen Sie Ihre Newsletter-Anmeldung
+
+Hallo{% if first_name %} {{ first_name }}{% endif %},
+
+vielen Dank für Ihr Interesse an unserem Newsletter! Um sicherzustellen, dass diese E-Mail-Adresse Ihnen gehört, bitten wir Sie, Ihre Anmeldung zu bestätigen.
+
+Mit unserem Newsletter erhalten Sie:
+• Produktneuigkeiten und Updates
+• Exklusive Einblicke in die Entwicklung
+• Tipps und Best Practices
+
+Anmeldung bestätigen: {{ confirmation_url }}
+
+Falls Sie sich nicht für unseren Newsletter angemeldet haben, können Sie diese E-Mail einfach ignorieren.
+{% endblock %}
+
+{% block footer_extra %}
+Diese E-Mail wurde versendet, weil Ihre E-Mail-Adresse für den Newsletter angemeldet wurde.
+{% endblock %}

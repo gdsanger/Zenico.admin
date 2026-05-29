@@ -1,0 +1,30 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#d32f2f;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Ihre Zenico-Instanz wurde gesperrt
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  leider mussten wir Ihre Zenico-Instanz <strong>{{ instance_name }}</strong> aufgrund von Zahlungsrückständen sperren.
+</p>
+
+{% include "mail/components/_warning_box.html" with content="<strong>Ihre Instanz ist aktuell nicht erreichbar.</strong><br><br>Um die Instanz wieder zu aktivieren, klären Sie bitte die offenen Zahlungen." %}
+
+<p style="margin:0 0 15px 0;">
+  Ihre Daten bleiben für <strong>30 Tage</strong> gespeichert. Danach werden sie unwiderruflich gelöscht.
+</p>
+
+{% include "mail/components/_button.html" with url=payment_url label="Zahlung klären →" %}
+
+<p style="margin:0 0 15px 0;">
+  Bei Fragen kontaktieren Sie uns bitte unter billing@zenico.app.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

@@ -1,0 +1,18 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Ihre Zenico-Instanz ist wieder aktiv
+
+Sehr geehrte/r {{ contact_name }},
+
+gute Nachrichten! Ihre Zenico-Instanz {{ instance_name }} wurde erfolgreich reaktiviert und ist wieder verfügbar.
+
+Sie können sich jetzt wieder mit Ihren gewohnten Zugangsdaten anmelden.
+
+Zur Instanz: {{ instance_url }}
+
+Vielen Dank für Ihre Zahlung!
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

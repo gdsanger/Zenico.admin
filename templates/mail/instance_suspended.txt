@@ -1,0 +1,24 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Ihre Zenico-Instanz wurde gesperrt
+
+Sehr geehrte/r {{ contact_name }},
+
+leider mussten wir Ihre Zenico-Instanz {{ instance_name }} aufgrund von Zahlungsrückständen sperren.
+
+────────────────────────────────────────────────────────
+WARNUNG: Ihre Instanz ist aktuell nicht erreichbar.
+
+Um die Instanz wieder zu aktivieren, klären Sie bitte die offenen Zahlungen.
+────────────────────────────────────────────────────────
+
+Ihre Daten bleiben für 30 TAGE gespeichert. Danach werden sie unwiderruflich gelöscht.
+
+Zahlung klären: {{ payment_url }}
+
+Bei Fragen kontaktieren Sie uns bitte unter billing@zenico.app.
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

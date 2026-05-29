@@ -1,0 +1,25 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+🎉 Ihre Zenico-Instanz ist bereit!
+
+Sehr geehrte/r {{ contact_name }},
+
+gute Nachrichten — Ihre Zenico-Instanz wurde erfolgreich eingerichtet und ist jetzt einsatzbereit!
+
+Ihre Instanz-Daten:
+────────────────────────────────────────────────────────
+Instanz-Name: {{ instance_name }}
+Instanz-URL: {{ instance_url }}
+API-Key: {{ api_key }}
+────────────────────────────────────────────────────────
+
+Sie können sich jetzt mit Ihren Azure AD-Zugangsdaten anmelden und Ihre Mitarbeiter lizenzieren.
+
+Jetzt starten: {{ instance_url }}
+
+Bei Fragen zur Konfiguration oder Nutzung Ihrer Instanz stehen wir Ihnen gerne zur Verfügung. Weitere Informationen finden Sie auch in unserer Dokumentation.
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

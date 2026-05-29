@@ -1,0 +1,25 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+API-Key Ihrer Zenico-Instanz wurde erneuert
+
+Sehr geehrte/r {{ contact_name }},
+
+der API-Key Ihrer Zenico-Instanz wurde erfolgreich erneuert.
+
+────────────────────────────────────────────────────────
+⚠️ WICHTIG: Der alte API-Key ist ab sofort ungültig.
+
+Bitte aktualisieren Sie Ihre Deployment-Scripts und Integrationen mit dem neuen Key.
+────────────────────────────────────────────────────────
+
+Betroffene Instanz:
+Instanz-Name: {{ instance_name }}
+Instanz-URL: {{ instance_url }}
+Neuer API-Key: {{ api_key }}
+
+Zum Admin: {{ admin_base_url }}/instances/{{ instance_id }}/
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

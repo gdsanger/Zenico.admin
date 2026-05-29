@@ -1,0 +1,36 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Bitte bestätigen Sie Ihre Newsletter-Anmeldung
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo{% if first_name %} {{ first_name }}{% endif %},</p>
+
+<p style="margin:0 0 15px 0;">
+  vielen Dank für Ihr Interesse an unserem Newsletter! Um sicherzustellen, dass diese E-Mail-Adresse Ihnen gehört, bitten wir Sie, Ihre Anmeldung zu bestätigen.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit unserem Newsletter erhalten Sie:
+</p>
+
+<ul style="margin:0 0 15px 20px;padding:0;">
+  <li style="margin:0 0 8px 0;">Produktneuigkeiten und Updates</li>
+  <li style="margin:0 0 8px 0;">Exklusive Einblicke in die Entwicklung</li>
+  <li style="margin:0 0 8px 0;">Tipps und Best Practices</li>
+</ul>
+
+{% include "mail/components/_button.html" with url=confirmation_url label="Anmeldung bestätigen →" %}
+
+<p style="margin:0 0 15px 0;font-size:13px;color:#6B7280;">
+  Falls Sie sich nicht für unseren Newsletter angemeldet haben, können Sie diese E-Mail einfach ignorieren.
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<br>
+<span style="font-size:11px;">
+  Diese E-Mail wurde versendet, weil Ihre E-Mail-Adresse für den Newsletter angemeldet wurde.
+</span>
+{% endblock %}
