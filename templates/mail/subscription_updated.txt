@@ -1,0 +1,24 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Ihr Abonnement wurde aktualisiert
+
+Sehr geehrte/r {{ contact_name }},
+
+Ihr Zenico-Abonnement wurde erfolgreich aktualisiert. Hier sind die neuen Details:
+
+Neue Abonnement-Details:
+────────────────────────────────────────────────────────
+Benutzer-Lizenzen: {{ user_seats }}
+Instanz-Slots: {{ instance_seats }}
+
+{{ changes }}
+────────────────────────────────────────────────────────
+
+Die Änderungen sind sofort wirksam. Ihre nächste Rechnung wird anteilig angepasst (Proration).
+
+Abonnement verwalten: {{ payment_url }}
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

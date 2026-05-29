@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django.utils import timezone
-import os
+from django.conf import settings
 
 from crm.models import Contact
 from newsletter.models import Subscriber
@@ -96,7 +96,7 @@ class ContactCreateAPIView(APIView):
                 subscriber.save()
 
             # Send double-opt-in email
-            confirmation_url = f"https://zenico.app/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
+            confirmation_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
             MailService.send_template(
                 to=email,
                 template='newsletter_doi',
@@ -123,10 +123,9 @@ class ContactCreateAPIView(APIView):
         )
 
         # Send notification email to admin
-        admin_email = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'admin@zenico.app')
-        admin_url = os.getenv('ADMIN_URL', 'https://admin.zenico.app') + f'/crm/contacts/{contact.id}/'
+        admin_url = f"{settings.ADMIN_BASE_URL}/crm/contacts/{contact.id}/"
         MailService.send_template(
-            to=admin_email,
+            to=settings.ADMIN_NOTIFICATION_EMAIL,
             template='contact_notification',
             context={
                 'first_name': first_name,

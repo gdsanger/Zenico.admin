@@ -1,0 +1,23 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Neue Kontaktanfrage
+
+Eine neue Kontaktanfrage ist über zenico.web eingegangen:
+
+────────────────────────────────────────────────────────
+Name: {{ first_name }} {{ last_name }}
+E-Mail: {{ email }}
+Telefon: {{ phone|default:"–" }}
+Firma: {{ company|default:"–" }}
+Nachricht:
+{{ message }}
+
+Newsletter: {% if newsletter_consent %}Ja{% else %}Nein{% endif %}
+IP-Adresse: {{ ip_address }}
+────────────────────────────────────────────────────────
+
+Im Admin ansehen: {{ admin_url }}
+
+Diese Benachrichtigung wurde automatisch generiert.
+{% endblock %}

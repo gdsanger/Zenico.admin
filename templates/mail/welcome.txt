@@ -1,0 +1,27 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Willkommen bei Zenico
+
+Sehr geehrte/r {{ contact_name }},
+
+vielen Dank für Ihre Anmeldung bei Zenico! Wir freuen uns, Sie als neuen Kunden begrüßen zu dürfen.
+
+Ihr Konto {{ company_name }} wird gerade eingerichtet. Sie erhalten in Kürze eine weitere E-Mail, sobald Ihre Zenico-Instanz bereit ist.
+
+Ihre Daten im Überblick:
+────────────────────────────────────────────────────────
+Firmenname: {{ company_name }}
+Slug: {{ slug }}
+Plan: {{ plan_name }}
+Benutzer-Lizenzen: {{ user_seats }}
+Instanz-Slots: {{ instance_seats }}
+────────────────────────────────────────────────────────
+
+Support kontaktieren: {{ frontend_base_url }}/kontakt/
+
+Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

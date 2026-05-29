@@ -1,0 +1,19 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Ihre Anfrage ist bei uns eingegangen
+
+Hallo {{ first_name }},
+
+vielen Dank für Ihre Anfrage über unser Kontaktformular. Wir haben Ihre Nachricht erhalten und werden uns schnellstmöglich bei Ihnen melden.
+
+In der Regel antworten wir innerhalb von 1–2 Werktagen. Bei dringenden Anliegen erreichen Sie uns auch telefonisch.
+
+{% if newsletter_consent %}
+Newsletter-Anmeldung:
+Sie haben sich für unseren Newsletter angemeldet. Sie erhalten in Kürze eine separate E-Mail zur Bestätigung Ihrer Anmeldung (Double-Opt-In).
+{% endif %}
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

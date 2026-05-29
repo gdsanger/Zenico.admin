@@ -1,0 +1,26 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Ihr Abonnement wurde aktualisiert
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  Ihr Zenico-Abonnement wurde erfolgreich aktualisiert. Hier sind die neuen Details:
+</p>
+
+{% include "mail/components/_info_box.html" with content="<strong>Neue Abonnement-Details:</strong><br><br><strong>Benutzer-Lizenzen:</strong> "|add:user_seats|stringformat:"d"|add:"<br><strong>Instanz-Slots:</strong> "|add:instance_seats|stringformat:"d"|add:"<br><br>"|add:changes %}
+
+<p style="margin:0 0 15px 0;">
+  Die Änderungen sind sofort wirksam. Ihre nächste Rechnung wird anteilig angepasst (Proration).
+</p>
+
+{% include "mail/components/_button.html" with url=payment_url label="Abonnement verwalten →" %}
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

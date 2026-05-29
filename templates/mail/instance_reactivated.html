@@ -1,0 +1,28 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Ihre Zenico-Instanz ist wieder aktiv
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  gute Nachrichten! Ihre Zenico-Instanz <strong>{{ instance_name }}</strong> wurde erfolgreich reaktiviert und ist wieder verfügbar.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Sie können sich jetzt wieder mit Ihren gewohnten Zugangsdaten anmelden.
+</p>
+
+{% include "mail/components/_button.html" with url=instance_url label="Zur Instanz →" %}
+
+<p style="margin:0 0 15px 0;">
+  Vielen Dank für Ihre Zahlung!
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

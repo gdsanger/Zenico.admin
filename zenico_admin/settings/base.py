@@ -194,3 +194,11 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
+
+# Mail Settings
+MAIL_FROM_ADDRESS = os.getenv('MAIL_FROM_ADDRESS', 'noreply@zenico.app')
+MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'Zenico')
+ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'team@zenico.app')
+ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'https://admin.zenico.app')
+FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
+

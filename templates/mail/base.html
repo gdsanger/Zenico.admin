@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>{% block subject %}Zenico{% endblock %}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F4F6F8;font-family:Arial,Helvetica,sans-serif;">
+
+  <!-- Outer Wrapper -->
+  <table width="100%" cellpadding="0" cellspacing="0" border="0"
+         style="background-color:#F4F6F8;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
+
+        <!-- Container -->
+        <table width="600" cellpadding="0" cellspacing="0" border="0"
+               style="max-width:600px;width:100%;">
+
+          <!-- Header -->
+          <tr>
+            <td bgcolor="#1A1F2E"
+                style="padding:24px 32px;border-radius:8px 8px 0 0;">
+              <!-- Logo Wordmark -->
+              <span style="font-size:24px;font-weight:bold;color:#2E9A9A;font-family:Arial,Helvetica,sans-serif;">
+                zenico
+              </span>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td bgcolor="#FFFFFF"
+                style="padding:40px 32px;color:#1A1F2E;
+                       font-size:15px;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+              {% block content %}{% endblock %}
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td bgcolor="#F4F6F8"
+                style="padding:24px 32px;border-radius:0 0 8px 8px;
+                       border-top:1px solid #E5E7EB;font-family:Arial,Helvetica,sans-serif;">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="font-size:12px;color:#6B7280;line-height:1.6;">
+                    © {{ current_year }} Zenico. Alle Rechte vorbehalten.
+                    {% block footer_extra %}{% endblock %}
+                  </td>
+                  <td align="right"
+                      style="font-size:12px;color:#6B7280;">
+                    <a href="{{ frontend_base_url }}/impressum/"
+                       style="color:#6B7280;text-decoration:none;">Impressum</a>
+                    &nbsp;·&nbsp;
+                    <a href="{{ frontend_base_url }}/datenschutz/"
+                       style="color:#6B7280;text-decoration:none;">Datenschutz</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+
+</body>
+</html>

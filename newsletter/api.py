@@ -12,7 +12,7 @@ from django_ratelimit.decorators import ratelimit
 from django.utils.decorators import method_decorator
 from django.shortcuts import redirect
 from django.utils import timezone
-import os
+from django.conf import settings
 
 from newsletter.models import Subscriber, AutomationSequence, SequenceEnrollment
 from core.services.mail import MailService
@@ -69,7 +69,7 @@ class SubscribeAPIView(APIView):
             subscriber.save()
 
         # Send double-opt-in email
-        confirmation_url = f"https://zenico.app/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
+        confirmation_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
         MailService.send_template(
             to=email,
             template='newsletter_doi',
@@ -117,7 +117,7 @@ class ConfirmAPIView(APIView):
         try:
             subscriber = Subscriber.objects.get(unsubscribe_token=token)
         except Subscriber.DoesNotExist:
-            return redirect('https://zenico.app/?error=invalid_token')
+            return redirect(f'{settings.FRONTEND_BASE_URL}/?error=invalid_token')
 
         # Set confirmed_at if not already confirmed
         if not subscriber.confirmed_at:
@@ -125,7 +125,7 @@ class ConfirmAPIView(APIView):
             subscriber.save()
 
             # Send confirmation email
-            unsubscribe_url = f"https://zenico.app/api/newsletter/unsubscribe/{subscriber.unsubscribe_token}/"
+            unsubscribe_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/unsubscribe/{subscriber.unsubscribe_token}/"
             MailService.send_template(
                 to=subscriber.email,
                 template='newsletter_confirmed',
@@ -183,7 +183,7 @@ class ConfirmAPIView(APIView):
             )
 
         # Redirect to thank you page
-        return redirect('https://zenico.app/?confirmed=1')
+        return redirect(f'{settings.FRONTEND_BASE_URL}/?confirmed=1')
 
 
 class UnsubscribeAPIView(APIView):
@@ -201,7 +201,7 @@ class UnsubscribeAPIView(APIView):
         try:
             subscriber = Subscriber.objects.get(unsubscribe_token=token)
         except Subscriber.DoesNotExist:
-            return redirect('https://zenico.app/?error=invalid_token')
+            return redirect(f'{settings.FRONTEND_BASE_URL}/?error=invalid_token')
 
         # Set status to unsubscribed
         if subscriber.status != 'unsubscribed':
@@ -233,4 +233,4 @@ class UnsubscribeAPIView(APIView):
             )
 
         # Redirect to unsubscribe confirmation page
-        return redirect('https://zenico.app/?unsubscribed=1')
+        return redirect(f'{settings.FRONTEND_BASE_URL}/?unsubscribed=1')

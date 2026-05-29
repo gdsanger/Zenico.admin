@@ -1,0 +1,24 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  API-Key Ihrer Zenico-Instanz wurde erneuert
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  der API-Key Ihrer Zenico-Instanz wurde erfolgreich erneuert.
+</p>
+
+{% include "mail/components/_warning_box.html" with content="<strong>⚠️ Wichtig:</strong> Der alte API-Key ist ab sofort ungültig.<br><br>Bitte aktualisieren Sie Ihre Deployment-Scripts und Integrationen mit dem neuen Key." %}
+
+{% include "mail/components/_info_box.html" with content="<strong>Betroffene Instanz:</strong><br><br><strong>Instanz-Name:</strong> "|add:instance_name|add:"<br><strong>Instanz-URL:</strong> <a href=\""|add:instance_url|add:"\" style=\"color:#2E9A9A;text-decoration:none;\">"|add:instance_url|add:"</a><br><strong>Neuer API-Key:</strong> <code style=\"background:#E5E7EB;padding:2px 6px;border-radius:3px;font-family:monospace;\">"|add:api_key|add:"</code>" %}
+
+{% include "mail/components/_button.html" with url=admin_base_url|add:"/instances/"|add:instance_id|add:"/" label="Zum Admin →" %}
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

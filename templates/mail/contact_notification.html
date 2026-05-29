@@ -1,0 +1,17 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Neue Kontaktanfrage
+</h1>
+
+<p style="margin:0 0 15px 0;">Eine neue Kontaktanfrage ist über zenico.web eingegangen:</p>
+
+{% include "mail/components/_info_box.html" with content="<strong>Name:</strong> "|add:first_name|add:" "|add:last_name|add:"<br><strong>E-Mail:</strong> "|add:email|add:"<br><strong>Telefon:</strong> "|add:phone|default:"–"|add:"<br><strong>Firma:</strong> "|add:company|default:"–"|add:"<br><strong>Nachricht:</strong><br>"|add:message|add:"<br><br><strong>Newsletter:</strong> "|add:newsletter_consent|yesno:"Ja,Nein"|add:"<br><strong>IP-Adresse:</strong> "|add:ip_address %}
+
+{% include "mail/components/_button.html" with url=admin_url label="Im Admin ansehen →" %}
+
+<p style="margin:0 0 15px 0;font-size:13px;color:#6B7280;">
+  Diese Benachrichtigung wurde automatisch generiert.
+</p>
+{% endblock %}
