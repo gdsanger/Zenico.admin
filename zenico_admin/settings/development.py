@@ -7,8 +7,12 @@ from .base import *
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
-
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]','admin.zenico.app']
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.zenico.app",
+    # optional Wildcard, falls mehrere Subdomains:
+    # "https://*.angermeier.net",
+]
 
 # Development-specific apps
 INSTALLED_APPS += [

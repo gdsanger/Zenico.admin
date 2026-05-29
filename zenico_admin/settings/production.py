@@ -9,7 +9,11 @@ DEBUG = False
 
 # SECURITY WARNING: update this with your production domain
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://admin.zenico.app",
+    # optional Wildcard, falls mehrere Subdomains:
+    # "https://*.angermeier.net",
+]
 
 # Security settings
 SECURE_SSL_REDIRECT = True
