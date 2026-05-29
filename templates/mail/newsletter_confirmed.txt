@@ -1,0 +1,20 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Willkommen — Sie sind jetzt angemeldet!
+
+Hallo{% if first_name %} {{ first_name }}{% endif %},
+
+vielen Dank für die Bestätigung Ihrer E-Mail-Adresse! Sie sind nun für unseren Newsletter angemeldet und erhalten regelmäßig Neuigkeiten und Updates von {{ mail_from_name }}.
+
+Wir freuen uns, Sie in unserer Community begrüßen zu dürfen. Bleiben Sie auf dem Laufenden über neue Funktionen, Best Practices und exklusive Einblicke.
+
+Zenico entdecken: {{ frontend_base_url }}
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}
+
+{% block footer_extra %}
+Newsletter abmelden: {{ unsubscribe_url }}
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Ihre Anfrage ist bei uns eingegangen
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo {{ first_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  vielen Dank für Ihre Anfrage über unser Kontaktformular. Wir haben Ihre Nachricht erhalten und werden uns schnellstmöglich bei Ihnen melden.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  In der Regel antworten wir innerhalb von 1–2 Werktagen. Bei dringenden Anliegen erreichen Sie uns auch telefonisch.
+</p>
+
+{% if newsletter_consent %}
+<p style="margin:0 0 15px 0;">
+  <strong>Newsletter-Anmeldung:</strong><br>
+  Sie haben sich für unseren Newsletter angemeldet. Sie erhalten in Kürze eine separate E-Mail zur Bestätigung Ihrer Anmeldung (Double-Opt-In).
+</p>
+{% endif %}
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

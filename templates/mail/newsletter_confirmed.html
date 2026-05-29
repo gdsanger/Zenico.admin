@@ -1,0 +1,29 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Willkommen — Sie sind jetzt angemeldet!
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo{% if first_name %} {{ first_name }}{% endif %},</p>
+
+<p style="margin:0 0 15px 0;">
+  vielen Dank für die Bestätigung Ihrer E-Mail-Adresse! Sie sind nun für unseren Newsletter angemeldet und erhalten regelmäßig Neuigkeiten und Updates von {{ mail_from_name }}.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Wir freuen uns, Sie in unserer Community begrüßen zu dürfen. Bleiben Sie auf dem Laufenden über neue Funktionen, Best Practices und exklusive Einblicke.
+</p>
+
+{% include "mail/components/_button.html" with url=frontend_base_url label="Zenico entdecken →" %}
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}
+
+{% block footer_extra %}
+<br>
+<a href="{{ unsubscribe_url }}" style="color:#6B7280;text-decoration:underline;">Newsletter abmelden</a>
+{% endblock %}

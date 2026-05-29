@@ -1,0 +1,54 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Willkommen bei Zenico
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte/r {{ contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  vielen Dank für Ihre Anmeldung bei <strong style="color:#2E9A9A;">Zenico</strong>! Wir freuen uns, Sie als neuen Kunden begrüßen zu dürfen.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Ihr Konto <strong>{{ company_name }}</strong> wird gerade eingerichtet. Sie erhalten in Kürze eine weitere E-Mail, sobald Ihre Zenico-Instanz bereit ist.
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#F4F6F8"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #2E9A9A;
+               font-size:13px;color:#6B7280;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      <strong>Ihre Daten im Überblick:</strong><br><br>
+      <strong>Firmenname:</strong> {{ company_name }}<br>
+      <strong>Slug:</strong> {{ slug }}<br>
+      <strong>Plan:</strong> {{ plan_name }}<br>
+      <strong>Benutzer-Lizenzen:</strong> {{ user_seats }}<br>
+      <strong>Instanz-Slots:</strong> {{ instance_seats }}
+    </td>
+  </tr>
+</table>
+
+<table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#2E9A9A"
+        style="border-radius:6px;padding:12px 28px;">
+      <a href="{{ frontend_base_url }}/kontakt/"
+         style="color:#FFFFFF;font-family:Arial,Helvetica,sans-serif;
+                font-size:15px;font-weight:bold;text-decoration:none;
+                display:inline-block;">
+        Support kontaktieren →
+      </a>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 15px 0;">Bei Fragen stehen wir Ihnen jederzeit gerne zur Verfügung.</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

@@ -1,0 +1,11 @@
+<!-- Aufruf: {% include "mail/components/_info_box.html" with content=box_content %} -->
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#F4F6F8"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #2E9A9A;
+               font-size:13px;color:#6B7280;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      {{ content|safe }}
+    </td>
+  </tr>
+</table>

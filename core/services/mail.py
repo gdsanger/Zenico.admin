@@ -7,6 +7,7 @@ All email operations are logged via AuditService.
 
 import logging
 import os
+from datetime import datetime
 from typing import Optional, Union
 from django.template.loader import render_to_string
 from django.conf import settings
@@ -97,8 +98,8 @@ class MailService:
         Side effects:
             Creates an AuditLog entry (mail.sent or mail.failed)
         """
-        from_address = os.getenv('MAIL_FROM_ADDRESS', 'admin@zenico.app')
-        from_name = os.getenv('MAIL_FROM_NAME', 'Zenico Admin')
+        from_address = settings.MAIL_FROM_ADDRESS
+        from_name = settings.MAIL_FROM_NAME
 
         # Normalize to list
         if isinstance(to, str):
@@ -208,36 +209,55 @@ class MailService:
         """
         Render a Django template and send it as an email.
 
-        Templates should be located in templates/mail/<template>.html
+        Templates should be located in templates/mail/<template>.html and .txt
         The template can define a subject variable or use subject_override.
 
         Args:
             to: Recipient email address or list of addresses
-            template: Template name (without path, e.g., 'welcome')
+            template: Template name (without path or extension, e.g., 'welcome')
             context: Context dict for template rendering
             subject_override: Override the subject from template (optional)
 
         Returns:
             bool: True if email was sent successfully, False otherwise
         """
-        template_path = f'mail/{template}.html'
+        # Add base context that's available to all templates
+        base_context = {
+            'admin_base_url': settings.ADMIN_BASE_URL,
+            'frontend_base_url': settings.FRONTEND_BASE_URL,
+            'mail_from_name': settings.MAIL_FROM_NAME,
+            'current_year': datetime.now().year,
+        }
+
+        # Merge user context with base context (user context takes precedence)
+        full_context = {**base_context, **context}
+
+        html_template_path = f'mail/{template}.html'
+        text_template_path = f'mail/{template}.txt'
 
         try:
-            # Render template
-            html_body = render_to_string(template_path, context)
+            # Render HTML template
+            html_body = render_to_string(html_template_path, full_context)
+
+            # Try to render text template, fallback to empty string if not found
+            try:
+                text_body = render_to_string(text_template_path, full_context)
+            except Exception:
+                text_body = ""
 
             # Extract subject from context or use override
-            subject = subject_override or context.get('subject', 'Zenico Admin Notification')
+            subject = subject_override or full_context.get('subject', 'Zenico Admin Notification')
 
-            # Send email
+            # Send email with both HTML and text
             return cls.send(
                 to=to,
                 subject=subject,
                 html_body=html_body,
+                text_body=text_body,
             )
 
         except Exception as e:
-            logger.exception(f'Failed to render template {template_path}: {e}')
+            logger.exception(f'Failed to render template {html_template_path}: {e}')
             AuditService.log(
                 action=AuditAction.MAIL_FAILED,
                 resource_type='Email',

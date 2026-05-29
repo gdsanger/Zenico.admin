@@ -1,0 +1,29 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+⚠️ Zahlungsproblem bei Ihrem Zenico-Abonnement
+
+Sehr geehrte/r {{ contact_name }},
+
+leider konnten wir Ihre letzte Rechnung nicht einziehen. Es liegt ein Problem mit Ihrer Zahlungsmethode vor.
+
+────────────────────────────────────────────────────────
+⏰ HANDLUNGSBEDARF:
+
+Bitte aktualisieren Sie Ihre Zahlungsdaten in den nächsten 7 TAGEN, um eine Sperrung Ihrer Zenico-Instanz zu vermeiden.
+────────────────────────────────────────────────────────
+
+Rechnungsdetails:
+• Rechnungsnummer: {{ invoice_id }}
+• Betrag: {{ amount }} {{ currency }}
+• Fälligkeitsdatum: {{ due_date }}
+
+Zahlungsmethode aktualisieren: {{ payment_url }}
+
+Nach erfolgreicher Zahlung wird Ihre Instanz automatisch wieder aktiviert.
+
+Bei Fragen zur Rechnung oder Zahlung kontaktieren Sie uns bitte unter billing@zenico.app.
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}
