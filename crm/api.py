@@ -5,6 +5,7 @@ These endpoints are called by zenico.web and do not require authentication.
 Rate limiting and CORS are applied.
 """
 
+import logging
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +18,8 @@ from crm.models import Contact
 from newsletter.models import Subscriber
 from core.services.mail import MailService
 from core.services.audit import AuditService, AuditAction
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='dispatch')
@@ -75,6 +78,13 @@ class ContactCreateAPIView(APIView):
             ip_address=ip_address,
         )
 
+        # Track email sending results
+        email_results = {
+            'contact_confirmation': False,
+            'admin_notification': False,
+            'newsletter_doi': False
+        }
+
         # If newsletter consent, create or reactivate subscriber
         if newsletter_consent:
             subscriber, created = Subscriber.objects.get_or_create(
@@ -97,7 +107,7 @@ class ContactCreateAPIView(APIView):
 
             # Send double-opt-in email
             confirmation_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
-            MailService.send_template(
+            email_results['newsletter_doi'] = MailService.send_template(
                 to=email,
                 template='newsletter_doi',
                 context={
@@ -108,7 +118,7 @@ class ContactCreateAPIView(APIView):
             )
 
         # Send confirmation email to contact
-        MailService.send_template(
+        email_results['contact_confirmation'] = MailService.send_template(
             to=email,
             template='contact_confirmation',
             context={
@@ -124,7 +134,7 @@ class ContactCreateAPIView(APIView):
 
         # Send notification email to admin
         admin_url = f"{settings.ADMIN_BASE_URL}/crm/contacts/{contact.id}/"
-        MailService.send_template(
+        email_results['admin_notification'] = MailService.send_template(
             to=settings.ADMIN_NOTIFICATION_EMAIL,
             template='contact_notification',
             context={
@@ -141,7 +151,7 @@ class ContactCreateAPIView(APIView):
             }
         )
 
-        # Log audit
+        # Log audit with email results
         AuditService.log(
             action=AuditAction.CONTACT_CREATED,
             resource_type='Contact',
@@ -154,11 +164,22 @@ class ContactCreateAPIView(APIView):
                 'email': email,
                 'company': company,
                 'newsletter_consent': newsletter_consent,
+                'email_results': email_results,
             },
-            note=f'Contact created from web form: {email}'
+            note=f'Contact created from web form: {email}. Emails sent: {sum(email_results.values())}/{"3" if newsletter_consent else "2"}'
         )
 
+        # Log warning if any emails failed
+        failed_emails = [k for k, v in email_results.items() if not v]
+        if failed_emails:
+            logger.warning(
+                f'Failed to send emails for contact {contact.id} ({email}): {", ".join(failed_emails)}'
+            )
+
         return Response(
-            {'message': 'Contact created successfully'},
+            {
+                'message': 'Contact created successfully',
+                'email_status': email_results
+            },
             status=status.HTTP_201_CREATED
         )
