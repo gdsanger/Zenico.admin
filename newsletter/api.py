@@ -5,6 +5,7 @@ These endpoints are called by zenico.web and do not require authentication.
 Rate limiting and CORS are applied.
 """
 
+import logging
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -17,6 +18,8 @@ from django.conf import settings
 from newsletter.models import Subscriber, AutomationSequence, SequenceEnrollment
 from core.services.mail import MailService
 from core.services.audit import AuditService, AuditAction
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(ratelimit(key='ip', rate='5/m', method='POST', block=True), name='dispatch')
@@ -70,7 +73,7 @@ class SubscribeAPIView(APIView):
 
         # Send double-opt-in email
         confirmation_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/confirm/{subscriber.unsubscribe_token}/"
-        MailService.send_template(
+        email_sent = MailService.send_template(
             to=email,
             template='newsletter_doi',
             context={
@@ -79,6 +82,12 @@ class SubscribeAPIView(APIView):
                 'subject': 'Newsletter-Anmeldung bestätigen – Zenico'
             }
         )
+
+        # Log warning if email failed
+        if not email_sent:
+            logger.warning(
+                f'Failed to send DOI email to subscriber {subscriber.id} ({email})'
+            )
 
         # Log audit
         AuditService.log(
@@ -126,7 +135,7 @@ class ConfirmAPIView(APIView):
 
             # Send confirmation email
             unsubscribe_url = f"{settings.ADMIN_BASE_URL}/api/newsletter/unsubscribe/{subscriber.unsubscribe_token}/"
-            MailService.send_template(
+            email_sent = MailService.send_template(
                 to=subscriber.email,
                 template='newsletter_confirmed',
                 context={
@@ -135,6 +144,12 @@ class ConfirmAPIView(APIView):
                     'subject': 'Newsletter-Anmeldung bestätigt – Zenico'
                 }
             )
+
+            # Log warning if email failed
+            if not email_sent:
+                logger.warning(
+                    f'Failed to send confirmation email to subscriber {subscriber.id} ({subscriber.email})'
+                )
 
             # Enroll in automation sequences with trigger=subscriber_confirmed
             sequences = AutomationSequence.objects.filter(
