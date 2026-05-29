@@ -1,5 +1,7 @@
 """
 Unit tests for CRM & Newsletter API endpoints.
+
+Tests include basic functionality and email failure handling for Issue #770.
 """
 
 from django.test import TestCase, Client
@@ -9,6 +11,7 @@ from unittest.mock import patch, MagicMock
 from crm.models import Contact
 from newsletter.models import Subscriber, AutomationSequence, SequenceEnrollment
 from customers.models import Customer
+from audit.models import AuditLog
 
 
 class ContactAPITestCase(TestCase):
@@ -197,3 +200,211 @@ class RateLimitTestCase(TestCase):
 
         # Note: Full rate limit testing requires integration testing
         # with proper request simulation to avoid CSRF protection
+
+
+class EmailFailureHandlingTestCase(TestCase):
+    """Test email failure handling for Issue #770."""
+
+    def setUp(self):
+        """Set up test client."""
+        self.client = Client()
+
+    @patch('crm.api.MailService.send_template')
+    def test_contact_created_with_all_emails_successful(self, mock_send_template):
+        """Test contact creation when all emails are sent successfully."""
+        # Mock all emails as successful
+        mock_send_template.return_value = True
+
+        data = {
+            'first_name': 'Max',
+            'last_name': 'Mustermann',
+            'email': 'max@example.com',
+            'phone': '0123456789',
+            'company': 'Test GmbH',
+            'message': 'Test message',
+            'newsletter_consent': True,
+            'ip_address': '127.0.0.1'
+        }
+
+        response = self.client.post('/api/contacts/', data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['message'], 'Contact created successfully')
+
+        # Check email status in response
+        email_status = response.json()['email_status']
+        self.assertTrue(email_status['contact_confirmation'])
+        self.assertTrue(email_status['admin_notification'])
+        self.assertTrue(email_status['newsletter_doi'])
+
+        # Verify contact was created
+        contact = Contact.objects.get(email='max@example.com')
+        self.assertEqual(contact.first_name, 'Max')
+        self.assertEqual(contact.last_name, 'Mustermann')
+
+        # Verify subscriber was created
+        subscriber = Subscriber.objects.get(email='max@example.com')
+        self.assertEqual(subscriber.source, 'contact_form')
+
+        # Verify audit log includes email results
+        audit_log = AuditLog.objects.filter(
+            resource_type='Contact',
+            resource_id=str(contact.id)
+        ).first()
+        self.assertIsNotNone(audit_log)
+        self.assertIn('email_results', audit_log.after)
+        self.assertIn('Emails sent: 3/3', audit_log.note)
+
+        # Verify 3 emails were sent (DOI, confirmation, admin notification)
+        self.assertEqual(mock_send_template.call_count, 3)
+
+    @patch('crm.api.MailService.send_template')
+    def test_contact_created_with_email_failures(self, mock_send_template):
+        """Test contact creation when emails fail to send."""
+        # Mock emails as failing
+        mock_send_template.return_value = False
+
+        data = {
+            'first_name': 'Max',
+            'last_name': 'Mustermann',
+            'email': 'failure@example.com',
+            'newsletter_consent': True,
+            'ip_address': '127.0.0.1'
+        }
+
+        response = self.client.post('/api/contacts/', data, content_type='application/json')
+
+        # Contact should still be created with 201 status
+        self.assertEqual(response.status_code, 201)
+
+        # Check email status shows failures
+        email_status = response.json()['email_status']
+        self.assertFalse(email_status['contact_confirmation'])
+        self.assertFalse(email_status['admin_notification'])
+        self.assertFalse(email_status['newsletter_doi'])
+
+        # Verify contact was still created
+        contact = Contact.objects.get(email='failure@example.com')
+        self.assertEqual(contact.first_name, 'Max')
+
+        # Verify audit log includes email results
+        audit_log = AuditLog.objects.filter(
+            resource_type='Contact',
+            resource_id=str(contact.id)
+        ).first()
+        self.assertIsNotNone(audit_log)
+        self.assertIn('email_results', audit_log.after)
+        self.assertIn('Emails sent: 0/3', audit_log.note)
+
+    @patch('crm.api.MailService.send_template')
+    def test_contact_created_with_partial_email_failures(self, mock_send_template):
+        """Test contact creation when some emails fail."""
+        # Mock emails with mixed success/failure
+        # First call (newsletter_doi) succeeds, second (confirmation) fails, third (admin) succeeds
+        mock_send_template.side_effect = [True, False, True]
+
+        data = {
+            'first_name': 'Max',
+            'last_name': 'Mustermann',
+            'email': 'partial@example.com',
+            'newsletter_consent': True,
+            'ip_address': '127.0.0.1'
+        }
+
+        response = self.client.post('/api/contacts/', data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+
+        # Check email status shows mixed results
+        email_status = response.json()['email_status']
+        self.assertTrue(email_status['newsletter_doi'])
+        self.assertFalse(email_status['contact_confirmation'])
+        self.assertTrue(email_status['admin_notification'])
+
+        # Verify audit log reflects partial success
+        contact = Contact.objects.get(email='partial@example.com')
+        audit_log = AuditLog.objects.filter(
+            resource_type='Contact',
+            resource_id=str(contact.id)
+        ).first()
+        self.assertIn('Emails sent: 2/3', audit_log.note)
+
+    @patch('crm.api.logger')
+    @patch('crm.api.MailService.send_template')
+    def test_warning_logged_on_email_failure(self, mock_send_template, mock_logger):
+        """Test that warnings are logged when emails fail."""
+        # Mock confirmation email failing
+        mock_send_template.side_effect = [True, False, True]
+
+        data = {
+            'first_name': 'Max',
+            'last_name': 'Mustermann',
+            'email': 'warning@example.com',
+            'newsletter_consent': True,
+            'ip_address': '127.0.0.1'
+        }
+
+        response = self.client.post('/api/contacts/', data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once()
+        warning_message = mock_logger.warning.call_args[0][0]
+        self.assertIn('Failed to send emails', warning_message)
+        self.assertIn('contact_confirmation', warning_message)
+
+    @patch('newsletter.api.logger')
+    @patch('newsletter.api.MailService.send_template')
+    def test_newsletter_subscribe_with_email_failure(self, mock_send_template, mock_logger):
+        """Test newsletter subscription when email fails to send."""
+        mock_send_template.return_value = False
+
+        data = {
+            'email': 'newsletter_fail@example.com',
+            'first_name': 'Test',
+            'ip_address': '127.0.0.1'
+        }
+
+        response = self.client.post('/api/newsletter/subscribe/', data, content_type='application/json')
+
+        # Should still return 201 (to prevent email enumeration)
+        self.assertEqual(response.status_code, 201)
+
+        # Verify subscriber was still created
+        subscriber = Subscriber.objects.get(email='newsletter_fail@example.com')
+        self.assertIsNotNone(subscriber)
+
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once()
+        warning_message = mock_logger.warning.call_args[0][0]
+        self.assertIn('Failed to send DOI email', warning_message)
+
+    @patch('newsletter.api.logger')
+    @patch('newsletter.api.MailService.send_template')
+    def test_newsletter_confirm_with_email_failure(self, mock_send_template, mock_logger):
+        """Test newsletter confirmation when email fails to send."""
+        mock_send_template.return_value = False
+
+        # Create subscriber
+        subscriber = Subscriber.objects.create(
+            email='confirm_fail@example.com',
+            first_name='Test',
+            source='web_form',
+            status='active'
+        )
+
+        # Confirm subscription
+        response = self.client.get(f'/api/newsletter/confirm/{subscriber.unsubscribe_token}/')
+
+        self.assertEqual(response.status_code, 302)  # Redirect
+
+        # Verify confirmed_at was set despite email failure
+        subscriber.refresh_from_db()
+        self.assertIsNotNone(subscriber.confirmed_at)
+
+        # Verify warning was logged
+        mock_logger.warning.assert_called_once()
+        warning_message = mock_logger.warning.call_args[0][0]
+        self.assertIn('Failed to send confirmation email', warning_message)
+
