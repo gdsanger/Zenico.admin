@@ -54,6 +54,7 @@ Edit `.env` and set the required variables:
 - `SECRET_KEY`: Django secret key (generate a new one for production)
 - `DEBUG`: Set to `False` in production
 - `DATABASE_URL`: PostgreSQL connection string
+- `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`: Required for email sending via Microsoft Graph (client credentials)
 - Other configuration as needed
 
 ### 5. Run Migrations

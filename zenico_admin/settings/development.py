@@ -28,6 +28,9 @@ INSTALLED_APPS += [
 # Email backend for development
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
+# Disable rate limiting in development (and unit tests)
+RATELIMIT_ENABLE = False
+
 
 # Django Debug Toolbar settings (if installed)
 # INSTALLED_APPS += ['debug_toolbar']

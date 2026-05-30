@@ -7,6 +7,7 @@ All email operations are logged via AuditService.
 
 import logging
 import os
+import uuid
 from datetime import datetime
 from typing import Optional, Union
 from django.template.loader import render_to_string
@@ -42,6 +43,19 @@ class MailService:
             client_secret = os.getenv('AZURE_CLIENT_SECRET')
 
             if not all([tenant_id, client_id, client_secret]):
+                missing_keys = [
+                    key
+                    for key, value in {
+                        'AZURE_TENANT_ID': tenant_id,
+                        'AZURE_CLIENT_ID': client_id,
+                        'AZURE_CLIENT_SECRET': client_secret,
+                    }.items()
+                    if not value
+                ]
+                logger.error(
+                    'Missing required Azure AD configuration for Graph email sending: %s',
+                    ', '.join(missing_keys) if missing_keys else '(unknown)',
+                )
                 raise ValueError(
                     'Missing required Azure AD configuration. '
                     'Ensure AZURE_TENANT_ID, AZURE_CLIENT_ID, and AZURE_CLIENT_SECRET are set.'
@@ -69,6 +83,15 @@ class MailService:
         else:
             error = result.get('error', 'unknown_error')
             error_description = result.get('error_description', 'No description available')
+            correlation_id = result.get('correlation_id') or result.get('correlationId')
+            trace_id = result.get('trace_id') or result.get('traceId')
+            logger.error(
+                'Failed to acquire Graph access token via MSAL: error=%s correlation_id=%s trace_id=%s description=%s',
+                error,
+                correlation_id,
+                trace_id,
+                error_description,
+            )
             raise Exception(f'Failed to acquire access token: {error} - {error_description}')
 
     @classmethod
@@ -117,15 +140,9 @@ class MailService:
                     'contentType': 'HTML',
                     'content': html_body,
                 },
-                'from': {
-                    'emailAddress': {
-                        'address': from_address,
-                        'name': from_name,
-                    }
-                },
                 'toRecipients': recipients,
             },
-            'saveToSentItems': 'true',
+            'saveToSentItems': True,
         }
 
         if cc_recipients:
@@ -140,9 +157,12 @@ class MailService:
 
             # Send email via Graph API
             url = f'https://graph.microsoft.com/v1.0/users/{from_address}/sendMail'
+            client_request_id = str(uuid.uuid4())
             headers = {
                 'Authorization': f'Bearer {token}',
                 'Content-Type': 'application/json',
+                'client-request-id': client_request_id,
+                'return-client-request-id': 'true',
             }
 
             response = requests.post(url, json=message, headers=headers, timeout=30)
@@ -164,7 +184,20 @@ class MailService:
                 return True
             else:
                 # Failure
-                error_msg = f'HTTP {response.status_code}: {response.text}'
+                def _header(name: str) -> Optional[str]:
+                    try:
+                        value = response.headers.get(name)
+                    except Exception:
+                        return None
+                    if value is None:
+                        return None
+                    return str(value)
+
+                request_id = _header('request-id') or _header('x-ms-request-id') or _header('client-request-id')
+                error_msg = (
+                    f'HTTP {response.status_code} (request_id={request_id}, client_request_id={client_request_id}): '
+                    f'{response.text}'
+                )
                 AuditService.log(
                     action=AuditAction.MAIL_FAILED,
                     resource_type='Email',
@@ -174,6 +207,8 @@ class MailService:
                         'cc': cc,
                         'subject': subject,
                         'error': error_msg,
+                        'request_id': request_id,
+                        'client_request_id': client_request_id,
                     },
                     note=f'Failed to send email to {", ".join(to)}: {error_msg}',
                 )
