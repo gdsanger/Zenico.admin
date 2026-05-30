@@ -11,8 +11,13 @@ Django-based administration platform for the Zenico multi-tenant SaaS system.
   - `instances` - Instance management
   - `billing` - Billing and invoicing
   - `audit` - Audit logging
+  - `crm` - Customer relationship management (contacts)
+  - `newsletter` - Newsletter and marketing automation
+  - `ui` - User interface views
 - PostgreSQL database support
 - Environment-based configuration (development/production)
+- **Daily rotating log files with 7-day retention** (see [LOGGING_AND_SENTRY.md](LOGGING_AND_SENTRY.md))
+- **Sentry integration for error tracking** (optional, see [LOGGING_AND_SENTRY.md](LOGGING_AND_SENTRY.md))
 
 ## Prerequisites
 
@@ -55,6 +60,7 @@ Edit `.env` and set the required variables:
 - `DEBUG`: Set to `False` in production
 - `DATABASE_URL`: PostgreSQL connection string
 - `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`: Required for email sending via Microsoft Graph (client credentials)
+- `SENTRY_DSN`: (Optional) Sentry DSN for error tracking - see [LOGGING_AND_SENTRY.md](LOGGING_AND_SENTRY.md)
 - Other configuration as needed
 
 ### 5. Run Migrations
@@ -134,8 +140,17 @@ DATABASE_URL=postgresql://username:password@localhost:5432/zenico_admin
 ## Running Tests
 
 ```bash
+# Run all tests
 python manage.py test
+
+# Run specific app tests
+python manage.py test core.tests_logging
+
+# Run with verbose output
+python manage.py test --verbosity 2
 ```
+
+See also: [LOGGING_AND_SENTRY.md](LOGGING_AND_SENTRY.md) for logging and Sentry testing.
 
 ## Deployment
 

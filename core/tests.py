@@ -308,6 +308,47 @@ class MailServiceTests(TestCase):
                 # Verify email was sent
                 self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 1)
 
+    def test_send_template_with_button_component_renders(self):
+        """Test that templates using button component render without recursion."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 202
+                mock_post.return_value = mock_response
+
+                newsletter_result = MailService.send_template(
+                    to='recipient@example.com',
+                    template='newsletter_doi',
+                    context={
+                        'first_name': 'Max',
+                        'confirmation_url': 'https://example.com/confirm/token',
+                    },
+                    subject_override='Newsletter-Anmeldung bestätigen – Zenico',
+                )
+                contact_result = MailService.send_template(
+                    to='recipient@example.com',
+                    template='contact_notification',
+                    context={
+                        'first_name': 'Max',
+                        'last_name': 'Mustermann',
+                        'email': 'max@example.com',
+                        'phone': '',
+                        'company': '',
+                        'message': 'Testnachricht',
+                        'newsletter_consent': True,
+                        'ip_address': '127.0.0.1',
+                        'admin_url': 'https://example.com/admin/crm/contacts/1/',
+                    },
+                    subject_override='Neue Kontaktanfrage über zenico.web',
+                )
+
+                self.assertTrue(newsletter_result)
+                self.assertTrue(contact_result)
+                self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 2)
+
     def test_send_template_with_invalid_template(self):
         """Test that send_template() handles template errors."""
         from core.services.mail import MailService
