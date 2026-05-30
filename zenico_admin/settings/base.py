@@ -204,3 +204,89 @@ MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'Zenico')
 ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'team@zenico.app')
 ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'https://admin.zenico.app')
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
+
+
+# Logging Configuration
+# Ensure logs directory exists
+LOGS_DIR = BASE_DIR / 'logs'
+LOGS_DIR.mkdir(exist_ok=True)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'level': 'DEBUG',
+        },
+        'daily_file': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'filename': str(LOGS_DIR / 'app.log'),
+            'when': 'midnight',
+            'interval': 1,
+            'backupCount': 7,
+            'formatter': 'verbose',
+            'level': 'DEBUG',
+        },
+    },
+    'root': {
+        'handlers': ['console', 'daily_file'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'daily_file'],
+            'level': os.getenv('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console', 'daily_file'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.server': {
+            'handlers': ['console', 'daily_file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
+
+# Sentry Configuration
+# Only initialize Sentry if SENTRY_DSN is provided
+SENTRY_DSN = os.getenv('SENTRY_DSN', '')
+
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            CeleryIntegration(),
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100% of transactions for performance monitoring.
+        # We recommend adjusting this value in production.
+        traces_sample_rate=float(os.getenv('SENTRY_TRACES_SAMPLE_RATE', '0.1')),
+
+        # If you wish to associate users to errors (assuming you are using
+        # django.contrib.auth) you may enable sending PII data.
+        send_default_pii=True,
+
+        # Environment name
+        environment=os.getenv('SENTRY_ENVIRONMENT', 'production' if not DEBUG else 'development'),
+    )
