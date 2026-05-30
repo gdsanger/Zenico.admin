@@ -231,7 +231,7 @@ LOGGING = {
             'level': 'DEBUG',
         },
         'daily_file': {
-            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'class': 'core.logging_utils.DailyRotatingFileHandler',
             'filename': str(LOGS_DIR / 'app.log'),
             'when': 'midnight',
             'interval': 1,

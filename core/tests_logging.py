@@ -30,7 +30,7 @@ class LoggingConfigurationTestCase(TestCase):
 
         self.assertEqual(
             daily_file_handler['class'],
-            'logging.handlers.TimedRotatingFileHandler'
+            'core.logging_utils.DailyRotatingFileHandler'
         )
         self.assertEqual(daily_file_handler['when'], 'midnight')
         self.assertEqual(daily_file_handler['interval'], 1)
