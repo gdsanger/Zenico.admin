@@ -79,8 +79,8 @@ class SubscribeAPIView(APIView):
             context={
                 'first_name': first_name,
                 'confirmation_url': confirmation_url,
-                'subject': 'Newsletter-Anmeldung bestätigen – Zenico'
-            }
+            },
+            subject_override='Newsletter-Anmeldung bestätigen – Zenico'
         )
 
         # Log warning if email failed
@@ -141,8 +141,8 @@ class ConfirmAPIView(APIView):
                 context={
                     'first_name': subscriber.first_name,
                     'unsubscribe_url': unsubscribe_url,
-                    'subject': 'Newsletter-Anmeldung bestätigt – Zenico'
-                }
+                },
+                subject_override='Newsletter-Anmeldung bestätigt – Zenico'
             )
 
             # Log warning if email failed

@@ -113,8 +113,8 @@ class ContactCreateAPIView(APIView):
                 context={
                     'first_name': first_name,
                     'confirmation_url': confirmation_url,
-                    'subject': 'Newsletter-Anmeldung bestätigen – Zenico'
-                }
+                },
+                subject_override='Newsletter-Anmeldung bestätigen – Zenico'
             )
 
         # Send confirmation email to contact
@@ -128,8 +128,8 @@ class ContactCreateAPIView(APIView):
                 'phone': phone,
                 'company': company,
                 'message': message,
-                'subject': 'Ihre Anfrage bei Zenico – Bestätigung'
-            }
+            },
+            subject_override='Ihre Anfrage bei Zenico – Bestätigung'
         )
 
         # Send notification email to admin
@@ -147,8 +147,8 @@ class ContactCreateAPIView(APIView):
                 'newsletter_consent': newsletter_consent,
                 'ip_address': ip_address,
                 'admin_url': admin_url,
-                'subject': 'Neue Kontaktanfrage über zenico.web'
-            }
+            },
+            subject_override='Neue Kontaktanfrage über zenico.web'
         )
 
         # Log audit with email results
