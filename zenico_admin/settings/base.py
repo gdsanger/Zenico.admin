@@ -170,6 +170,9 @@ REST_FRAMEWORK = {
     'UNAUTHENTICATED_USER': None,
 }
 
+# django-ratelimit
+RATELIMIT_ENABLE = os.getenv('RATELIMIT_ENABLE', 'True') == 'True'
+
 
 # Celery Configuration
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
@@ -201,4 +204,3 @@ MAIL_FROM_NAME = os.getenv('MAIL_FROM_NAME', 'Zenico')
 ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'team@zenico.app')
 ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'https://admin.zenico.app')
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
-

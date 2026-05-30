@@ -209,6 +209,9 @@ class MailServiceTests(TestCase):
                 mock_post.assert_called_once()
                 call_args = mock_post.call_args
                 self.assertIn('https://graph.microsoft.com', call_args[0][0])
+                self.assertIs(call_args.kwargs['json']['saveToSentItems'], True)
+                self.assertIn('client-request-id', call_args.kwargs['headers'])
+                self.assertIn('return-client-request-id', call_args.kwargs['headers'])
 
                 # Verify audit log was created
                 self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 1)
