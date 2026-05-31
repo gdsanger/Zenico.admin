@@ -269,6 +269,15 @@ class Subscription(models.Model):
         default=False,
         verbose_name='AI addon active'
     )
+    coupon = models.ForeignKey(
+        'billing.Coupon',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='subscriptions',
+        verbose_name='coupon',
+        help_text='Applied coupon code for discount'
+    )
     current_period_start = models.DateTimeField(
         null=True,
         blank=True,
