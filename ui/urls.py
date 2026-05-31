@@ -27,6 +27,18 @@ from ui.views import (
     AuditLogListView,
     audit_export_csv,
 )
+from ui.views.coupons import (
+    CouponListView,
+    CouponCreateView,
+    CouponDetailView,
+    coupon_deactivate,
+    coupon_activate,
+    coupon_validate,
+    coupon_apply,
+    coupon_remove,
+    coupon_type_fields,
+    coupon_duration_fields,
+)
 from crm.views import (
     ContactListView,
     ContactDetailView,
@@ -87,6 +99,18 @@ urlpatterns = [
     path('billing/subscriptions/', SubscriptionListView.as_view(), name='subscription_list'),
     path('billing/invoices/', InvoiceListView.as_view(), name='invoice_list'),
     path('billing/stripe-events/', StripeEventListView.as_view(), name='stripe_event_list'),
+
+    # Coupons
+    path('billing/coupons/', CouponListView.as_view(), name='coupon_list'),
+    path('billing/coupons/new/', CouponCreateView.as_view(), name='coupon_create'),
+    path('billing/coupons/<uuid:pk>/', CouponDetailView.as_view(), name='coupon_detail'),
+    path('billing/coupons/<uuid:pk>/deactivate/', coupon_deactivate, name='coupon_deactivate'),
+    path('billing/coupons/<uuid:pk>/activate/', coupon_activate, name='coupon_activate'),
+    path('billing/coupons/validate/', coupon_validate, name='coupon_validate'),
+    path('billing/coupons/apply/', coupon_apply, name='coupon_apply'),
+    path('billing/coupons/remove/<uuid:subscription_id>/', coupon_remove, name='coupon_remove'),
+    path('billing/coupons/type-fields/', coupon_type_fields, name='coupon_type_fields'),
+    path('billing/coupons/duration-fields/', coupon_duration_fields, name='coupon_duration_fields'),
 
     # Audit
     path('audit/', AuditLogListView.as_view(), name='audit_log_list'),

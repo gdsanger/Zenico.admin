@@ -66,6 +66,10 @@
                 <i class="ti ti-file-invoice"></i>
                 Rechnungen
             </a>
+            <a href="{% url 'ui:coupon_list' %}" class="nav-link {% active_nav request 'coupon_list' %}">
+                <i class="ti ti-discount"></i>
+                Gutscheincodes
+            </a>
             <a href="{% url 'ui:stripe_event_list' %}" class="nav-link {% active_nav request 'stripe_event_list' %}">
                 <i class="ti ti-webhook"></i>
                 Stripe Events

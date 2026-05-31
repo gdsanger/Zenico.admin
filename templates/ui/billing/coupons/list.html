@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Gutscheincodes - zenico.admin{% endblock %}
+
+{% block page_title %}Gutscheincodes{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <div class="row g-3">
+        <div class="col-md-6">
+            <form method="get" action="{% url 'ui:coupon_list' %}">
+                <div class="input-group">
+                    <input
+                        type="text"
+                        name="search"
+                        class="form-control"
+                        placeholder="Suche nach Code oder Name..."
+                        value="{{ search }}"
+                    >
+                    <button class="btn btn-outline-secondary" type="submit">
+                        <i class="ti ti-search"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'ui:coupon_create' %}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> Neuer Code
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <ul class="nav nav-tabs mt-3">
+        <li class="nav-item">
+            <a class="nav-link {% if not status %}active{% endif %}" href="{% url 'ui:coupon_list' %}">
+                Alle
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status == 'active' %}active{% endif %}" href="?status=active">
+                Aktiv
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link {% if status == 'inactive' %}active{% endif %}" href="?status=inactive">
+                Inaktiv
+            </a>
+        </li>
+    </ul>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Rabatt</th>
+                    <th>Dauer</th>
+                    <th>Einlösungen</th>
+                    <th>Gültig bis</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for coupon in coupons %}
+                <tr style="cursor: pointer;" onclick="window.location.href='{% url 'ui:coupon_detail' coupon.pk %}'">
+                    <td>
+                        <strong>{{ coupon.code }}</strong>
+                    </td>
+                    <td>{{ coupon.name }}</td>
+                    <td>{{ coupon.discount_display }}</td>
+                    <td>{{ coupon.duration_display }}</td>
+                    <td>{{ coupon.redemptions_display }}</td>
+                    <td>
+                        {% if coupon.valid_until %}
+                            {{ coupon.valid_until|date:"d.m.Y" }}
+                        {% else %}
+                            <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <span class="badge bg-{{ coupon.status_badge }}">
+                            {{ coupon.status_text }}
+                        </span>
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'ui:coupon_detail' coupon.pk %}" class="btn btn-sm btn-ghost-secondary" onclick="event.stopPropagation();">
+                            <i class="ti ti-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        {% if search %}
+                            Keine Gutscheincodes gefunden für "{{ search }}".
+                        {% else %}
+                            Noch keine Gutscheincodes vorhanden.
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="card-footer d-flex align-items-center">
+        <p class="m-0 text-muted">
+            Zeige {{ page_obj.start_index }} bis {{ page_obj.end_index }} von {{ paginator.count }}
+        </p>
+        <ul class="pagination m-0 ms-auto">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                    <i class="ti ti-chevron-left"></i>
+                </a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">{{ num }}</a></li>
+                {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if status %}&status={{ status }}{% endif %}">
+                    <i class="ti ti-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

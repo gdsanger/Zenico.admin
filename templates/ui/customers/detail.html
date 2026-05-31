@@ -118,7 +118,40 @@
                         <td><i class="ti ti-check text-success"></i> Aktiv</td>
                     </tr>
                     {% endif %}
+                    {% if customer.active_subscription.coupon %}
+                    <tr>
+                        <th>Rabatt:</th>
+                        <td>
+                            <strong>{{ customer.active_subscription.coupon.code }}</strong> —
+                            {{ customer.active_subscription.coupon.discount_display }}
+                            {{ customer.active_subscription.coupon.duration_display }}
+                            <form method="post" action="{% url 'ui:coupon_remove' customer.active_subscription.pk %}" class="d-inline ms-2">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-ghost-danger" onclick="return confirm('Gutschein entfernen?');">
+                                    <i class="ti ti-x"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endif %}
                 </table>
+
+                <!-- Coupon Application Form -->
+                {% if customer.active_subscription and not customer.active_subscription.coupon %}
+                <hr>
+                <form hx-post="{% url 'ui:coupon_apply' %}" hx-target="#coupon-result" class="mt-3">
+                    {% csrf_token %}
+                    <input type="hidden" name="subscription_id" value="{{ customer.active_subscription.pk }}">
+                    <div class="mb-2">
+                        <label for="coupon-code" class="form-label small">Gutschein anwenden</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" name="code" id="coupon-code" class="form-control" placeholder="Code eingeben">
+                            <button type="submit" class="btn btn-primary">Anwenden</button>
+                        </div>
+                    </div>
+                    <div id="coupon-result"></div>
+                </form>
+                {% endif %}
                 {% else %}
                 <p class="text-muted mb-0">Kein aktives Abonnement</p>
                 {% endif %}

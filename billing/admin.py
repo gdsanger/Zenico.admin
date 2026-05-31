@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import StripeEvent, Invoice
+from .models import StripeEvent, Invoice, Coupon, CouponRedemption
 
 
 @admin.register(StripeEvent)
@@ -116,3 +116,114 @@ class InvoiceAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """Prevent deletion of invoices in admin."""
         return False
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    """Admin interface for Coupon model."""
+
+    list_display = [
+        'code',
+        'name',
+        'type',
+        'discount_display',
+        'duration_display',
+        'redemptions_count',
+        'max_redemptions',
+        'is_active',
+        'created_at'
+    ]
+    list_filter = ['is_active', 'type', 'duration', 'created_at']
+    search_fields = ['code', 'name']
+    readonly_fields = [
+        'id',
+        'stripe_coupon_id',
+        'stripe_promotion_code_id',
+        'redemptions_count',
+        'created_at',
+        'updated_at'
+    ]
+    date_hierarchy = 'created_at'
+
+    fieldsets = [
+        ('Basic Information', {
+            'fields': [
+                'id',
+                'code',
+                'name',
+                'is_active',
+                'created_by'
+            ]
+        }),
+        ('Discount Configuration', {
+            'fields': [
+                'type',
+                'discount_percent',
+                'discount_amount',
+                'duration',
+                'duration_in_months'
+            ]
+        }),
+        ('Redemption Limits', {
+            'fields': [
+                'max_redemptions',
+                'redemptions_count'
+            ]
+        }),
+        ('Validity Period', {
+            'fields': [
+                'valid_from',
+                'valid_until'
+            ]
+        }),
+        ('Stripe Integration', {
+            'fields': [
+                'stripe_coupon_id',
+                'stripe_promotion_code_id'
+            ],
+            'classes': ['collapse'],
+        }),
+        ('Timestamps', {
+            'fields': [
+                'created_at',
+                'updated_at'
+            ],
+            'classes': ['collapse'],
+        }),
+    ]
+
+
+@admin.register(CouponRedemption)
+class CouponRedemptionAdmin(admin.ModelAdmin):
+    """Admin interface for CouponRedemption model."""
+
+    list_display = [
+        'coupon',
+        'customer',
+        'subscription',
+        'redeemed_at'
+    ]
+    list_filter = ['redeemed_at']
+    search_fields = [
+        'coupon__code',
+        'customer__company_name',
+        'customer__slug'
+    ]
+    readonly_fields = [
+        'id',
+        'coupon',
+        'customer',
+        'subscription',
+        'redeemed_at',
+        'stripe_discount_id'
+    ]
+    date_hierarchy = 'redeemed_at'
+
+    def has_add_permission(self, request):
+        """Prevent manual creation of redemptions in admin."""
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deletion of redemptions in admin."""
+        return False
+
