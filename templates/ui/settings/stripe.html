@@ -72,7 +72,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-test-secret" class="mt-2" style="display: none;">
+                    <div id="edit-test_secret" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
@@ -91,7 +91,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-test-pub" class="mt-2" style="display: none;">
+                    <div id="edit-test_pub" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
@@ -110,7 +110,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-test-webhook" class="mt-2" style="display: none;">
+                    <div id="edit-test_webhook" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
@@ -137,7 +137,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-live-secret" class="mt-2" style="display: none;">
+                    <div id="edit-live_secret" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
@@ -156,7 +156,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-live-pub" class="mt-2" style="display: none;">
+                    <div id="edit-live_pub" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
@@ -175,7 +175,7 @@
                             <i class="ti ti-edit"></i> Ändern
                         </button>
                     </div>
-                    <div id="edit-live-webhook" class="mt-2" style="display: none;">
+                    <div id="edit-live_webhook" class="mt-2" style="display: none;">
                         <form method="post" action="{% url 'ui:stripe_config_save' %}">
                             {% csrf_token %}
                             <input type="hidden" name="mode" value="{{ mode }}">
