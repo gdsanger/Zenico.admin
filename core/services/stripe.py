@@ -19,8 +19,25 @@ from core.services.audit import AuditService, AuditAction
 
 logger = logging.getLogger(__name__)
 
-# Configure Stripe API key
-stripe.api_key = os.getenv('STRIPE_SECRET_KEY')
+
+def get_stripe():
+    """
+    Get configured Stripe client using StripeConfig from database.
+
+    Returns:
+        stripe: Configured Stripe module with API key set
+    """
+    from billing.models import StripeConfig
+
+    config = StripeConfig.get()
+    stripe.api_key = config.active_secret_key
+
+    if not stripe.api_key:
+        # Fallback to environment variable for initial setup
+        stripe.api_key = os.getenv('STRIPE_SECRET_KEY', '')
+        logger.warning('Using STRIPE_SECRET_KEY from environment (StripeConfig not configured)')
+
+    return stripe
 
 
 class StripeService:
@@ -50,8 +67,9 @@ class StripeService:
             - Creates audit log entry
         """
         try:
+            stripe_api = get_stripe()
             # Create Stripe customer
-            stripe_customer = stripe.Customer.create(
+            stripe_customer = stripe_api.Customer.create(
                 name=customer.company_name,
                 email=customer.billing_email,
                 metadata={
@@ -109,8 +127,9 @@ class StripeService:
             raise ValueError(f'Customer {customer.slug} has no Stripe customer ID')
 
         try:
+            stripe_api = get_stripe()
             # Update Stripe customer
-            stripe.Customer.modify(
+            stripe_api.Customer.modify(
                 customer.stripe_customer_id,
                 name=customer.company_name,
                 email=customer.billing_email,
@@ -274,6 +293,7 @@ class StripeService:
             raise ValueError('Subscription has no Stripe subscription ID')
 
         try:
+            stripe_api = get_stripe()
             # Retrieve current subscription
             stripe_subscription = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
 
@@ -363,6 +383,7 @@ class StripeService:
             raise ValueError('Subscription has no Stripe subscription ID')
 
         try:
+            stripe_api = get_stripe()
             # Retrieve current subscription
             stripe_subscription = stripe.Subscription.retrieve(subscription.stripe_subscription_id)
 
@@ -443,6 +464,7 @@ class StripeService:
             raise ValueError('Subscription has no Stripe subscription ID')
 
         try:
+            stripe_api = get_stripe()
             if at_period_end:
                 # Cancel at period end
                 cancelled_subscription = stripe.Subscription.modify(
@@ -579,8 +601,9 @@ class StripeService:
             raise ValueError(f'Customer {customer.slug} has no Stripe customer ID')
 
         try:
+            stripe_api = get_stripe()
             # Create portal session
-            session = stripe.billing_portal.Session.create(
+            session = stripe_api.billing_portal.Session.create(
                 customer=customer.stripe_customer_id,
                 return_url=return_url,
             )

@@ -1,10 +1,229 @@
 import uuid
+import logging
 from django.db import models
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.conf import settings
 from decimal import Decimal
+from cryptography.fernet import Fernet
 from customers.models import Customer, Subscription
+
+logger = logging.getLogger(__name__)
+
+
+class StripeConfig(models.Model):
+    """
+    Singleton model for Stripe configuration.
+
+    Stores API keys (encrypted), webhook secrets, and mode (test/live).
+    Only one instance exists with a fixed UUID.
+    """
+
+    MODE_CHOICES = [
+        ('test', 'Test'),
+        ('live', 'Live'),
+    ]
+
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.UUID('00000000-0000-0000-0000-000000000001'),
+        editable=False
+    )
+    mode = models.CharField(
+        max_length=10,
+        choices=MODE_CHOICES,
+        default='test',
+        verbose_name='mode',
+        help_text='test or live mode'
+    )
+
+    # Test mode keys (encrypted for secret keys)
+    test_secret_key = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='test secret key',
+        help_text='sk_test_... (encrypted)'
+    )
+    test_publishable_key = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='test publishable key',
+        help_text='pk_test_...'
+    )
+    test_webhook_secret = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='test webhook secret',
+        help_text='whsec_... (encrypted)'
+    )
+
+    # Live mode keys (encrypted for secret keys)
+    live_secret_key = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='live secret key',
+        help_text='sk_live_... (encrypted)'
+    )
+    live_publishable_key = models.CharField(
+        max_length=200,
+        blank=True,
+        verbose_name='live publishable key',
+        help_text='pk_live_...'
+    )
+    live_webhook_secret = models.CharField(
+        max_length=500,
+        blank=True,
+        verbose_name='live webhook secret',
+        help_text='whsec_... (encrypted)'
+    )
+
+    # Webhook status
+    webhook_endpoint_id = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='webhook endpoint ID',
+        help_text='we_...'
+    )
+    webhook_last_received_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='webhook last received at'
+    )
+    webhook_last_event_type = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name='webhook last event type'
+    )
+
+    # Audit fields
+    updated_by = models.ForeignKey(
+        'accounts.AdminUser',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name='updated by'
+    )
+    updated_at = models.DateTimeField(
+        auto_now=True,
+        verbose_name='updated at'
+    )
+
+    class Meta:
+        verbose_name = 'Stripe Configuration'
+        verbose_name_plural = 'Stripe Configuration'
+
+    def __str__(self):
+        return f"Stripe Config ({self.mode} mode)"
+
+    def save(self, *args, **kwargs):
+        """Enforce singleton pattern with fixed UUID."""
+        self.pk = uuid.UUID('00000000-0000-0000-0000-000000000001')
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get(cls):
+        """Get or create the singleton StripeConfig instance."""
+        obj, _ = cls.objects.get_or_create(
+            pk=uuid.UUID('00000000-0000-0000-0000-000000000001')
+        )
+        return obj
+
+    @property
+    def active_secret_key(self) -> str:
+        """Returns the decrypted secret key for the active mode."""
+        encrypted_key = self.live_secret_key if self.mode == 'live' else self.test_secret_key
+        if not encrypted_key:
+            return ''
+        return self._decrypt(encrypted_key)
+
+    @property
+    def active_publishable_key(self) -> str:
+        """Returns the publishable key for the active mode."""
+        return self.live_publishable_key if self.mode == 'live' else self.test_publishable_key
+
+    @property
+    def active_webhook_secret(self) -> str:
+        """Returns the decrypted webhook secret for the active mode."""
+        encrypted_secret = self.live_webhook_secret if self.mode == 'live' else self.test_webhook_secret
+        if not encrypted_secret:
+            return ''
+        return self._decrypt(encrypted_secret)
+
+    @property
+    def is_configured(self) -> bool:
+        """Returns True if the active mode is fully configured."""
+        if self.mode == 'live':
+            return bool(self.live_secret_key and self.live_webhook_secret)
+        return bool(self.test_secret_key and self.test_webhook_secret)
+
+    def set_test_secret_key(self, plaintext: str):
+        """Encrypt and store test secret key."""
+        self.test_secret_key = self._encrypt(plaintext) if plaintext else ''
+
+    def set_test_webhook_secret(self, plaintext: str):
+        """Encrypt and store test webhook secret."""
+        self.test_webhook_secret = self._encrypt(plaintext) if plaintext else ''
+
+    def set_live_secret_key(self, plaintext: str):
+        """Encrypt and store live secret key."""
+        self.live_secret_key = self._encrypt(plaintext) if plaintext else ''
+
+    def set_live_webhook_secret(self, plaintext: str):
+        """Encrypt and store live webhook secret."""
+        self.live_webhook_secret = self._encrypt(plaintext) if plaintext else ''
+
+    def get_test_secret_key(self) -> str:
+        """Decrypt and return test secret key."""
+        return self._decrypt(self.test_secret_key) if self.test_secret_key else ''
+
+    def get_test_webhook_secret(self) -> str:
+        """Decrypt and return test webhook secret."""
+        return self._decrypt(self.test_webhook_secret) if self.test_webhook_secret else ''
+
+    def get_live_secret_key(self) -> str:
+        """Decrypt and return live secret key."""
+        return self._decrypt(self.live_secret_key) if self.live_secret_key else ''
+
+    def get_live_webhook_secret(self) -> str:
+        """Decrypt and return live webhook secret."""
+        return self._decrypt(self.live_webhook_secret) if self.live_webhook_secret else ''
+
+    @staticmethod
+    def _get_cipher():
+        """Get Fernet cipher instance."""
+        key = getattr(settings, 'FIELD_ENCRYPTION_KEY', None)
+        if not key:
+            raise ValueError('FIELD_ENCRYPTION_KEY not configured in settings')
+        return Fernet(key.encode() if isinstance(key, str) else key)
+
+    @staticmethod
+    def _encrypt(plaintext: str) -> str:
+        """Encrypt plaintext string."""
+        if not plaintext:
+            return ''
+        cipher = StripeConfig._get_cipher()
+        encrypted_bytes = cipher.encrypt(plaintext.encode())
+        return encrypted_bytes.decode()
+
+    @staticmethod
+    def _decrypt(encrypted: str) -> str:
+        """Decrypt encrypted string."""
+        if not encrypted:
+            return ''
+        try:
+            cipher = StripeConfig._get_cipher()
+            decrypted_bytes = cipher.decrypt(encrypted.encode())
+            return decrypted_bytes.decode()
+        except Exception as e:
+            logger.error(f'Failed to decrypt field: {e}')
+            return ''
+
+    def mask_key(self, key_value: str) -> str:
+        """Mask a key for display (show only last 4 chars)."""
+        if not key_value or len(key_value) < 8:
+            return '••••••••'
+        return f"{key_value[:7]}••••{key_value[-4:]}"
 
 
 class StripeEvent(models.Model):

@@ -50,11 +50,20 @@ class StripeWebhookHandler:
             - May send emails
             - May update customer/subscription/instance status
         """
-        import os
-        webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET')
+        from billing.models import StripeConfig
+
+        # Get webhook secret from StripeConfig
+        config = StripeConfig.get()
+        webhook_secret = config.active_webhook_secret
 
         if not webhook_secret:
-            raise ValueError('STRIPE_WEBHOOK_SECRET environment variable not set')
+            # Fallback to environment variable for initial setup
+            import os
+            webhook_secret = os.getenv('STRIPE_WEBHOOK_SECRET', '')
+            logger.warning('Using STRIPE_WEBHOOK_SECRET from environment (StripeConfig not configured)')
+
+        if not webhook_secret:
+            raise ValueError('STRIPE_WEBHOOK_SECRET not configured in StripeConfig or environment')
 
         try:
             # Verify signature and construct event
