@@ -1,8 +1,11 @@
+import logging
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 from django.views.generic import TemplateView
 from django.db.models import Count, Q
 from django.shortcuts import render
+from django.http import HttpResponse
 
 from customers.models import Customer, Subscription, Plan
 from instances.models import Instance, UserLicense
@@ -10,6 +13,8 @@ from billing.models import StripeConfig
 from audit.models import AuditLog
 from ui.utils import calculate_mrr, calculate_customer_growth
 from ui.decorators import role_required
+
+logger = logging.getLogger(__name__)
 
 
 @method_decorator(login_required, name='dispatch')
@@ -77,16 +82,30 @@ def dashboard_kpis(request):
     """
     HTMX endpoint for KPI refresh.
     """
-    context = {}
-    context['total_customers'] = Customer.objects.filter(status='active').count()
-    context['new_customers_this_month'] = calculate_customer_growth(30)
-    context['total_instances'] = Instance.objects.filter(status='active').count()
-    context['provisioning_instances'] = Instance.objects.filter(status='provisioning').count()
-    context['total_licenses'] = UserLicense.objects.filter(is_active=True).count()
-    context['total_licenses_booked'] = UserLicense.objects.count()
-    context['mrr'] = calculate_mrr()
+    try:
+        context = {}
+        context['total_customers'] = Customer.objects.filter(status='active').count()
+        context['new_customers_this_month'] = calculate_customer_growth(30)
+        context['total_instances'] = Instance.objects.filter(status='active').count()
+        context['provisioning_instances'] = Instance.objects.filter(status='provisioning').count()
+        context['total_licenses'] = UserLicense.objects.filter(is_active=True).count()
+        context['total_licenses_booked'] = UserLicense.objects.count()
+        context['mrr'] = calculate_mrr()
 
-    return render(request, 'ui/partials/kpis.html', context)
+        return render(request, 'ui/partials/kpis.html', context)
+    except Exception as e:
+        logger.exception(f"Error in dashboard_kpis: {e}")
+        # Return default values to prevent breaking the dashboard
+        context = {
+            'total_customers': 0,
+            'new_customers_this_month': 0,
+            'total_instances': 0,
+            'provisioning_instances': 0,
+            'total_licenses': 0,
+            'total_licenses_booked': 0,
+            'mrr': Decimal('0.00')
+        }
+        return render(request, 'ui/partials/kpis.html', context)
 
 
 @login_required
@@ -95,5 +114,10 @@ def dashboard_activity(request):
     """
     HTMX endpoint for activity feed refresh.
     """
-    activity_feed = AuditLog.objects.select_related('customer').order_by('-created_at')[:15]
-    return render(request, 'ui/partials/activity.html', {'activity_feed': activity_feed})
+    try:
+        activity_feed = AuditLog.objects.select_related('customer').order_by('-created_at')[:15]
+        return render(request, 'ui/partials/activity.html', {'activity_feed': activity_feed})
+    except Exception as e:
+        logger.exception(f"Error in dashboard_activity: {e}")
+        # Return empty activity feed to prevent breaking the dashboard
+        return render(request, 'ui/partials/activity.html', {'activity_feed': []})

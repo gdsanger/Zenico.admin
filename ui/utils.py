@@ -1,5 +1,8 @@
+import logging
 from decimal import Decimal
 from customers.models import Subscription
+
+logger = logging.getLogger(__name__)
 
 
 def calculate_mrr():
@@ -7,21 +10,30 @@ def calculate_mrr():
     Calculate Monthly Recurring Revenue (MRR) from all active subscriptions.
     Returns the total MRR as a Decimal.
     """
-    mrr = Decimal('0.00')
+    try:
+        mrr = Decimal('0.00')
 
-    active_subscriptions = Subscription.objects.filter(
-        stripe_status__in=['active', 'trialing']
-    ).select_related('plan')
+        active_subscriptions = Subscription.objects.filter(
+            stripe_status__in=['active', 'trialing']
+        ).select_related('plan')
 
-    for subscription in active_subscriptions:
-        # Calculate MRR for this subscription
-        user_mrr = subscription.user_seats_total * subscription.plan.price_per_user
-        instance_mrr = subscription.instance_seats_total * subscription.plan.price_per_instance
-        ai_mrr = subscription.plan.price_ai_addon if subscription.ai_addon_active else Decimal('0.00')
+        for subscription in active_subscriptions:
+            try:
+                # Calculate MRR for this subscription
+                user_mrr = subscription.user_seats_total * subscription.plan.price_per_user
+                instance_mrr = subscription.instance_seats_total * subscription.plan.price_per_instance
+                ai_mrr = subscription.plan.price_ai_addon if subscription.ai_addon_active else Decimal('0.00')
 
-        mrr += user_mrr + instance_mrr + ai_mrr
+                mrr += user_mrr + instance_mrr + ai_mrr
+            except (AttributeError, TypeError) as e:
+                # Log but continue if a single subscription has issues
+                logger.warning(f"Error calculating MRR for subscription {subscription.id}: {e}")
+                continue
 
-    return mrr
+        return mrr
+    except Exception as e:
+        logger.exception(f"Error calculating total MRR: {e}")
+        return Decimal('0.00')
 
 
 def calculate_mrr_for_customer(customer):

@@ -1,0 +1,34 @@
+{% load ui_tags %}
+{% for log in activity_feed %}
+<div class="activity-item">
+    <div class="activity-icon {% if 'created' in log.action or 'provisioned' in log.action %}success{% elif 'warning' in log.action or 'payment' in log.action or 'past_due' in log.action %}warning{% elif 'suspended' in log.action or 'failed' in log.action %}danger{% else %}info{% endif %}">
+        {% if 'created' in log.action or 'provisioned' in log.action %}
+        <i class="ti ti-plus"></i>
+        {% elif 'warning' in log.action or 'payment' in log.action %}
+        <i class="ti ti-alert-triangle"></i>
+        {% elif 'suspended' in log.action or 'failed' in log.action %}
+        <i class="ti ti-x"></i>
+        {% else %}
+        <i class="ti ti-circle"></i>
+        {% endif %}
+    </div>
+    <div class="activity-content">
+        <div class="activity-text">
+            <strong>{{ log.action|title }}</strong>
+            {% if log.customer %}
+            - {{ log.customer.company_name }}
+            {% endif %}
+            {% if log.note %}
+            <br><small class="text-muted">{{ log.note|truncatewords:15 }}</small>
+            {% endif %}
+        </div>
+        <div class="activity-time">{{ log.created_at|timesince_short }}</div>
+    </div>
+</div>
+{% empty %}
+<div class="activity-item">
+    <div class="activity-content">
+        <div class="activity-text text-muted">Keine Aktivitäten vorhanden</div>
+    </div>
+</div>
+{% endfor %}
