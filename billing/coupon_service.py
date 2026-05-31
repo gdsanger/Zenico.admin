@@ -16,6 +16,7 @@ import stripe
 from billing.models import Coupon, CouponRedemption
 from customers.models import Customer, Subscription
 from core.services.audit import AuditService
+from core.services.stripe import get_stripe
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,9 @@ class CouponService:
             Exception: If Stripe API call fails
         """
         try:
+            # Initialize Stripe API with configured key
+            get_stripe()
+
             # Prepare coupon parameters
             coupon_params = {
                 'name': coupon.name,
@@ -192,6 +196,9 @@ class CouponService:
 
         # 3. Apply to Stripe subscription
         try:
+            # Initialize Stripe API with configured key
+            get_stripe()
+
             # Apply promotion code to Stripe subscription
             stripe_subscription = stripe.Subscription.modify(
                 subscription.stripe_subscription_id,
@@ -266,6 +273,9 @@ class CouponService:
         coupon_code = subscription.coupon.code
 
         try:
+            # Initialize Stripe API with configured key
+            get_stripe()
+
             # Remove discount from Stripe subscription
             stripe.Subscription.delete_discount(subscription.stripe_subscription_id)
 
@@ -318,6 +328,9 @@ class CouponService:
             Exception: If Stripe API call fails or coupon data is invalid
         """
         try:
+            # Initialize Stripe API with configured key
+            get_stripe()
+
             # Retrieve Stripe coupon
             stripe_coupon = stripe.Coupon.retrieve(stripe_coupon_id)
 
