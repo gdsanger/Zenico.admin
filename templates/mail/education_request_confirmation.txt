@@ -1,0 +1,12 @@
+Ihre Bewerbung ist eingegangen
+
+Sehr geehrte Damen und Herren von {{ institution_name }},
+
+vielen Dank für Ihr Interesse am Zenico-Bildungsrabatt!
+
+Ihre Bewerbung ist bei uns eingegangen und wird nun geprüft. Wir melden uns innerhalb von 5 Werktagen mit einer Entscheidung bei Ihnen zurück.
+
+💡 Hinweis: Bei Genehmigung erhalten Sie einen dauerhaften Rabattcode über 50% auf alle Zenico-Abonnements für Ihre Einrichtung.
+
+Mit freundlichen Grüßen
+Ihr Zenico-Team

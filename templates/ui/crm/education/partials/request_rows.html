@@ -1,0 +1,24 @@
+{% for req in requests %}
+<tr style="cursor: pointer;" onclick="window.location.href='{% url 'ui:education_request_detail' req.id %}';">
+    <td>
+        <strong>{{ req.institution_name }}</strong><br>
+        <small class="text-muted">{{ req.email }}</small>
+    </td>
+    <td>{{ req.get_institution_type_display }}</td>
+    <td>{{ req.user_count }}</td>
+    <td>
+        <span class="badge bg-{{ req.status_badge }}">
+            {{ req.status_text }}
+        </span>
+    </td>
+    <td>
+        <small class="text-muted">{{ req.created_at|date:"d.m.Y" }}</small>
+    </td>
+</tr>
+{% empty %}
+<tr>
+    <td colspan="5" class="text-center text-muted py-4">
+        Keine Anfragen gefunden.
+    </td>
+</tr>
+{% endfor %}

@@ -1,0 +1,63 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#10B981;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  🎓 Ihr Bildungsrabatt wurde genehmigt!
+</h1>
+
+<p style="margin:0 0 15px 0;">Sehr geehrte Damen und Herren von {{ institution_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  wir freuen uns, Ihnen mitteilen zu können, dass Ihre Bewerbung für den Zenico-Bildungsrabatt <strong>genehmigt</strong> wurde!
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#D1FAE5"
+        style="padding:20px;border-radius:6px;
+               border-left:3px solid #10B981;
+               font-size:14px;color:#065F46;line-height:1.6;font-family:Arial,Helvetica,sans-serif;text-align:center;">
+      <div style="font-size:13px;margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">Ihr Coupon-Code</div>
+      <div style="font-size:28px;font-weight:bold;font-family:'Courier New',monospace;margin-bottom:8px;color:#047857;">
+        {{ coupon_code }}
+      </div>
+      <div style="font-size:14px;color:#065F46;">
+        <strong>{{ discount_percent }}% Rabatt · Dauerhaft gültig</strong>
+      </div>
+    </td>
+  </tr>
+</table>
+
+<p style="margin:0 0 15px 0;">
+  <strong>So lösen Sie den Code ein:</strong>
+</p>
+
+<ol style="margin:0 0 15px 0;padding-left:20px;line-height:1.8;">
+  <li>Besuchen Sie <a href="{{ frontend_base_url }}" style="color:#2E9A9A;">zenico.app</a> und erstellen Sie ein Konto</li>
+  <li>Wählen Sie Ihren gewünschten Tarif aus</li>
+  <li>Geben Sie beim Checkout den Code <strong>{{ coupon_code }}</strong> ein</li>
+  <li>Der Rabatt wird automatisch angewendet – dauerhaft!</li>
+</ol>
+
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+  <tr>
+    <td bgcolor="#F0F9FF"
+        style="padding:16px 20px;border-radius:6px;
+               border-left:3px solid #3B82F6;
+               font-size:13px;color:#1E40AF;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
+      <strong>💡 Wichtig:</strong> Dieser Code kann einmal eingelöst werden und gilt dann dauerhaft für Ihr Abonnement. Der Rabatt verlängert sich automatisch bei jeder Zahlung.
+    </td>
+  </tr>
+</table>
+
+{% include "mail/components/_button.html" with url=frontend_base_url label="Zenico jetzt starten →" %}
+
+<p style="margin:0 0 15px 0;">
+  Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr Zenico-Team
+</p>
+{% endblock %}

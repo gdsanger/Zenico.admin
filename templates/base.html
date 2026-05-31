@@ -97,6 +97,13 @@
                 <i class="ti ti-address-book"></i>
                 Kontakte
             </a>
+            <a href="{% url 'ui:education_request_list' %}" class="nav-link {% active_nav request 'education_request_list' %}">
+                <i class="ti ti-school"></i>
+                Bildungsrabatt
+                {% if pending_education_count > 0 %}
+                <span class="badge bg-warning ms-2">{{ pending_education_count }}</span>
+                {% endif %}
+            </a>
 
             <div class="nav-section-title">Newsletter</div>
             <a href="{% url 'ui:subscriber_list' %}" class="nav-link {% active_nav request 'subscriber_list' %}">

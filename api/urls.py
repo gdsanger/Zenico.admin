@@ -6,7 +6,7 @@ Rate limiting and CORS are applied.
 """
 
 from django.urls import path
-from crm.api import ContactCreateAPIView
+from crm.api import ContactCreateAPIView, EducationDiscountAPIView
 from newsletter.api import SubscribeAPIView, ConfirmAPIView, UnsubscribeAPIView
 
 app_name = 'api'
@@ -14,6 +14,7 @@ app_name = 'api'
 urlpatterns = [
     # CRM
     path('contacts/', ContactCreateAPIView.as_view(), name='contact-create'),
+    path('education-discount/', EducationDiscountAPIView.as_view(), name='education-discount'),
 
     # Newsletter
     path('newsletter/subscribe/', SubscribeAPIView.as_view(), name='newsletter-subscribe'),

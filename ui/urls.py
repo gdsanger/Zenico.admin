@@ -55,6 +55,10 @@ from crm.views import (
     create_contact,
     assign_contact,
     get_note_form,
+    EducationRequestListView,
+    EducationRequestDetailView,
+    approve_education_request,
+    reject_education_request,
 )
 from newsletter.views import (
     SubscriberListView,
@@ -140,6 +144,12 @@ urlpatterns = [
     path('crm/contacts/<uuid:contact_id>/assign/', assign_contact, name='contact_assign'),
     path('crm/contacts/<uuid:contact_id>/note-form/', get_note_form, name='contact_note_form'),
     path('crm/contacts/<uuid:contact_id>/convert/', ConvertToCustomerView.as_view(), name='contact_convert'),
+
+    # CRM - Education Requests
+    path('crm/education/', EducationRequestListView.as_view(), name='education_request_list'),
+    path('crm/education/<uuid:request_id>/', EducationRequestDetailView.as_view(), name='education_request_detail'),
+    path('crm/education/<uuid:request_id>/approve/', approve_education_request, name='education_request_approve'),
+    path('crm/education/<uuid:request_id>/reject/', reject_education_request, name='education_request_reject'),
 
     # Newsletter
     path('newsletter/subscribers/', SubscriberListView.as_view(), name='subscriber_list'),

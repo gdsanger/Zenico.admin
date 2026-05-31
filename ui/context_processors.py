@@ -21,3 +21,16 @@ def alert_count(request):
         count = 0
 
     return {'alert_count': count}
+
+
+def pending_education_count(request):
+    """
+    Context processor to add pending education request count to all templates.
+    """
+    if request.user.is_authenticated and request.user.role in ['superadmin', 'support']:
+        from crm.models import EducationRequest
+        count = EducationRequest.objects.filter(status='pending').count()
+    else:
+        count = 0
+
+    return {'pending_education_count': count}
