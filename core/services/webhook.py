@@ -165,6 +165,8 @@ class StripeWebhookHandler:
             'invoice.payment_failed': cls._handle_invoice_payment_failed,
             'invoice.payment_action_required': cls._handle_invoice_payment_action_required,
             'customer.updated': cls._handle_customer_updated,
+            'customer.discount.created': cls._handle_discount_created,
+            'customer.discount.deleted': cls._handle_discount_deleted,
         }
 
         handler = handlers.get(event_type)
@@ -439,3 +441,128 @@ class StripeWebhookHandler:
         if updated:
             customer.save()
             logger.info(f'Updated customer {customer.slug} from Stripe data')
+
+    @classmethod
+    def _handle_discount_created(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """Handle customer.discount.created event - track coupon redemption if not already tracked."""
+        from billing.models import Coupon, CouponRedemption
+
+        discount_data = event['data']['object']
+        stripe_customer_id = discount_data['customer']
+
+        # Find customer
+        customer = Customer.objects.filter(stripe_customer_id=stripe_customer_id).first()
+        if not customer:
+            logger.warning(f'Customer not found for stripe_customer_id {stripe_customer_id}')
+            return
+
+        # Link event to customer
+        db_event.customer = customer
+        db_event.save()
+
+        # Extract coupon information
+        coupon_data = discount_data.get('coupon')
+        if not coupon_data:
+            logger.warning(f'No coupon data in discount.created event for customer {customer.slug}')
+            return
+
+        stripe_coupon_id = coupon_data['id']
+
+        # Find local coupon
+        coupon = Coupon.objects.filter(stripe_coupon_id=stripe_coupon_id).first()
+        if not coupon:
+            logger.warning(f'Coupon not found for stripe_coupon_id {stripe_coupon_id}')
+            return
+
+        # Check if redemption already exists
+        redemption_exists = CouponRedemption.objects.filter(
+            coupon=coupon,
+            customer=customer
+        ).exists()
+
+        if redemption_exists:
+            logger.info(f'Coupon {coupon.code} already redeemed by customer {customer.slug}, skipping')
+            return
+
+        # Find active subscription
+        subscription = customer.active_subscription
+        if not subscription:
+            logger.warning(f'No active subscription for customer {customer.slug}')
+            return
+
+        # Create redemption record
+        discount_id = discount_data.get('id', '')
+        redemption = CouponRedemption.objects.create(
+            coupon=coupon,
+            customer=customer,
+            subscription=subscription,
+            stripe_discount_id=discount_id,
+        )
+
+        # Increment redemption count
+        coupon.redemptions_count += 1
+        coupon.save()
+
+        # Update subscription coupon reference
+        subscription.coupon = coupon
+        subscription.save()
+
+        # Log action
+        AuditService.log(
+            action='coupon.redeemed',
+            resource_type='CouponRedemption',
+            resource_id=str(redemption.id),
+            customer=customer,
+            after={
+                'coupon_code': coupon.code,
+                'source': 'webhook',
+            },
+            note=f'Coupon {coupon.code} applied via Stripe webhook',
+        )
+
+        logger.info(f'Tracked coupon redemption {coupon.code} for customer {customer.slug} from webhook')
+
+    @classmethod
+    def _handle_discount_deleted(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """Handle customer.discount.deleted event - clear coupon from subscription."""
+        discount_data = event['data']['object']
+        stripe_customer_id = discount_data['customer']
+
+        # Find customer
+        customer = Customer.objects.filter(stripe_customer_id=stripe_customer_id).first()
+        if not customer:
+            logger.warning(f'Customer not found for stripe_customer_id {stripe_customer_id}')
+            return
+
+        # Link event to customer
+        db_event.customer = customer
+        db_event.save()
+
+        # Find active subscription
+        subscription = customer.active_subscription
+        if not subscription:
+            logger.warning(f'No active subscription for customer {customer.slug}')
+            return
+
+        if subscription.coupon:
+            coupon_code = subscription.coupon.code
+            subscription.coupon = None
+            subscription.save()
+
+            # Log action
+            AuditService.log(
+                action='coupon.removed',
+                resource_type='Subscription',
+                resource_id=str(subscription.id),
+                customer=customer,
+                after={
+                    'coupon_code': coupon_code,
+                    'source': 'webhook',
+                },
+                note=f'Coupon {coupon_code} removed via Stripe webhook',
+            )
+
+            logger.info(f'Removed coupon {coupon_code} from subscription for customer {customer.slug} via webhook')
+        else:
+            logger.info(f'No coupon to remove for customer {customer.slug}')
+

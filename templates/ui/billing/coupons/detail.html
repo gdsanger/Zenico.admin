@@ -1,0 +1,218 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ coupon.code }} - Gutscheincode - zenico.admin{% endblock %}
+
+{% block page_title %}Gutscheincode: {{ coupon.code }}{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Coupon Details Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h3 class="card-title">{{ coupon.code }} — {{ coupon.name }}</h3>
+                <div>
+                    {% if coupon.is_active %}
+                    <form method="post" action="{% url 'ui:coupon_deactivate' coupon.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-warning" onclick="return confirm('Gutschein deaktivieren?');">
+                            <i class="ti ti-ban"></i> Deaktivieren
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{% url 'ui:coupon_activate' coupon.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="ti ti-check"></i> Aktivieren
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Rabatt</p>
+                        <p class="fs-3 mb-0">{{ coupon.discount_display }}</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Dauer</p>
+                        <p class="fs-3 mb-0">{{ coupon.duration_display }}</p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Status</p>
+                        <p>
+                            <span class="badge bg-{{ coupon.status_badge }}">{{ coupon.status_text }}</span>
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Einlösungen</p>
+                        <p>{{ coupon.redemptions_display }}</p>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Gültig von</p>
+                        <p>
+                            {% if coupon.valid_from %}
+                                {{ coupon.valid_from|date:"d.m.Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">Sofort</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Gültig bis</p>
+                        <p>
+                            {% if coupon.valid_until %}
+                                {{ coupon.valid_until|date:"d.m.Y H:i" }}
+                            {% else %}
+                                <span class="text-muted">Unbegrenzt</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Stripe Coupon ID</p>
+                        <p class="font-monospace small">
+                            {% if coupon.stripe_coupon_id %}
+                                {{ coupon.stripe_coupon_id }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Stripe Promotion Code ID</p>
+                        <p class="font-monospace small">
+                            {% if coupon.stripe_promotion_code_id %}
+                                {{ coupon.stripe_promotion_code_id }}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Erstellt von</p>
+                        <p>
+                            {% if coupon.created_by %}
+                                {{ coupon.created_by.display_name }}
+                            {% else %}
+                                <span class="text-muted">System</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="text-muted mb-1">Erstellt am</p>
+                        <p>{{ coupon.created_at|date:"d.m.Y H:i" }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Redemptions Card -->
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Einlösungen ({{ redemption_count }})</h3>
+            </div>
+            <div class="card-body p-0">
+                {% if redemptions %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Kunde</th>
+                                <th>Eingelöst am</th>
+                                <th>Subscription Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for redemption in redemptions %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'ui:customer_detail' redemption.customer.slug %}">
+                                        {{ redemption.customer.company_name }}
+                                    </a>
+                                </td>
+                                <td>{{ redemption.redeemed_at|date:"d.m.Y H:i" }}</td>
+                                <td>
+                                    {% if redemption.subscription %}
+                                        <span class="badge bg-{% if redemption.subscription.is_active %}success{% else %}secondary{% endif %}">
+                                            {{ redemption.subscription.stripe_status }}
+                                        </span>
+                                    {% else %}
+                                        <span class="text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    <a href="{% url 'ui:customer_detail' redemption.customer.slug %}" class="btn btn-sm btn-ghost-secondary">
+                                        <i class="ti ti-arrow-right"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center text-muted py-4">
+                    Noch keine Einlösungen vorhanden.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title">Aktionen</h3>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'ui:coupon_list' %}" class="btn btn-outline-primary">
+                        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        {% if coupon.is_valid %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title">Gültigkeit</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-success mb-0">
+                    <i class="ti ti-check"></i> Dieser Gutschein ist gültig und kann eingelöst werden.
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <h3 class="card-title">Gültigkeit</h3>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning mb-0">
+                    <i class="ti ti-alert-triangle"></i> Dieser Gutschein ist <strong>{{ coupon.status_text }}</strong> und kann nicht eingelöst werden.
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
