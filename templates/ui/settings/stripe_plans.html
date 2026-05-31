@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Plan-Verdrahtung - zenico.admin{% endblock %}
+
+{% block page_title %}Plan-Verdrahtung{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="mb-3">
+            <a href="{% url 'ui:stripe_config' %}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i> Zurück zur Konfiguration
+            </a>
+            <button type="button" class="btn btn-primary" onclick="refreshPrices()">
+                <i class="ti ti-refresh"></i> Stripe-Preise laden
+            </button>
+        </div>
+
+        {% if error %}
+        <div class="alert alert-danger">
+            <i class="ti ti-alert-triangle"></i> {{ error }}
+        </div>
+        {% endif %}
+
+        {% for plan in plans %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">{{ plan.display_name }}</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'ui:stripe_plan_save' %}" onsubmit="return savePlan(event, '{{ plan.id }}')">
+                    {% csrf_token %}
+                    <input type="hidden" name="plan_id" value="{{ plan.id }}">
+
+                    <div class="mb-3">
+                        <label class="form-label">Stripe Produkt</label>
+                        <select name="stripe_product_id" class="form-select" id="product-{{ plan.id }}">
+                            <option value="">-- Bitte wählen --</option>
+                            {% for product in products %}
+                            <option value="{{ product.id }}" {% if product.id == plan.stripe_product_id %}selected{% endif %}>
+                                {{ product.name }} ({{ product.id }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Preis User</label>
+                        <select name="stripe_price_id_user" class="form-select">
+                            <option value="">-- Bitte wählen --</option>
+                            {% for price in all_prices %}
+                            <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_user %}selected{% endif %}>
+                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Preis Instanz</label>
+                        <select name="stripe_price_id_instance" class="form-select">
+                            <option value="">-- Bitte wählen --</option>
+                            {% for price in all_prices %}
+                            <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_instance %}selected{% endif %}>
+                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Preis KI-Addon</label>
+                        <select name="stripe_price_id_ai" class="form-select">
+                            <option value="">-- Bitte wählen --</option>
+                            {% for price in all_prices %}
+                            <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_ai %}selected{% endif %}>
+                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-check"></i> Speichern
+                    </button>
+                    <div id="result-{{ plan.id }}" class="mt-2"></div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+async function refreshPrices() {
+    try {
+        const response = await fetch('{% url "ui:stripe_fetch_prices" %}');
+        const data = await response.json();
+
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Fehler: ' + data.error);
+        }
+    } catch (error) {
+        alert('Fehler: ' + error.message);
+    }
+}
+
+async function savePlan(event, planId) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const resultDiv = document.getElementById('result-' + planId);
+
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Speichere...';
+
+    try {
+        const response = await fetch(form.action, {
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = '<div class="alert alert-success mt-2"><i class="ti ti-check"></i> ' + data.message + '</div>';
+            setTimeout(() => {
+                resultDiv.innerHTML = '';
+            }, 3000);
+        } else {
+            resultDiv.innerHTML = '<div class="alert alert-danger mt-2"><i class="ti ti-x"></i> ' + data.error + '</div>';
+        }
+    } catch (error) {
+        resultDiv.innerHTML = '<div class="alert alert-danger mt-2"><i class="ti ti-x"></i> ' + error.message + '</div>';
+    }
+
+    return false;
+}
+</script>
+{% endblock %}

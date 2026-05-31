@@ -19,6 +19,14 @@ from .billing import (
     InvoiceListView,
     StripeEventListView,
 )
+from .settings import (
+    StripeConfigView,
+    StripePlanWiringView,
+    stripe_config_save,
+    stripe_connection_test,
+    stripe_fetch_prices,
+    stripe_plan_save,
+)
 from .audit import AuditLogListView, audit_export_csv
 
 __all__ = [
@@ -40,6 +48,12 @@ __all__ = [
     'SubscriptionListView',
     'InvoiceListView',
     'StripeEventListView',
+    'StripeConfigView',
+    'StripePlanWiringView',
+    'stripe_config_save',
+    'stripe_connection_test',
+    'stripe_fetch_prices',
+    'stripe_plan_save',
     'AuditLogListView',
     'audit_export_csv',
 ]

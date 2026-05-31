@@ -23,6 +23,13 @@ from ui.views import (
     SubscriptionListView,
     InvoiceListView,
     StripeEventListView,
+    # Settings
+    StripeConfigView,
+    StripePlanWiringView,
+    stripe_config_save,
+    stripe_connection_test,
+    stripe_fetch_prices,
+    stripe_plan_save,
     # Audit
     AuditLogListView,
     audit_export_csv,
@@ -115,6 +122,14 @@ urlpatterns = [
     # Audit
     path('audit/', AuditLogListView.as_view(), name='audit_log_list'),
     path('audit/export/', audit_export_csv, name='audit_export_csv'),
+
+    # Settings
+    path('settings/stripe/', StripeConfigView.as_view(), name='stripe_config'),
+    path('settings/stripe/save/', stripe_config_save, name='stripe_config_save'),
+    path('settings/stripe/test/', stripe_connection_test, name='stripe_connection_test'),
+    path('settings/stripe/plans/', StripePlanWiringView.as_view(), name='stripe_plan_wiring'),
+    path('settings/stripe/fetch-prices/', stripe_fetch_prices, name='stripe_fetch_prices'),
+    path('settings/stripe/plans/save/', stripe_plan_save, name='stripe_plan_save'),
 
     # CRM
     path('crm/contacts/', ContactListView.as_view(), name='contact_list'),
