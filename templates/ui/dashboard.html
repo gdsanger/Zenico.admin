@@ -6,6 +6,26 @@
 {% block page_title %}Dashboard{% endblock %}
 
 {% block content %}
+<!-- Stripe Configuration Warning Banner -->
+{% if stripe_config_incomplete %}
+<div class="alert alert-warning mb-4">
+    <div class="d-flex align-items-center">
+        <i class="ti ti-alert-triangle fs-3 me-3"></i>
+        <div class="flex-grow-1">
+            <strong>Stripe-Konfiguration unvollständig</strong>
+            {% if unwired_plans_count > 0 %}
+            — {{ unwired_plans_count }} von 3 Plänen sind nicht mit Stripe verdrahtet.
+            {% else %}
+            — API-Keys oder Webhook-Secret fehlen.
+            {% endif %}
+        </div>
+        <a href="{% url 'ui:stripe_config' %}" class="btn btn-warning">
+            <i class="ti ti-settings"></i> Jetzt konfigurieren
+        </a>
+    </div>
+</div>
+{% endif %}
+
 <!-- KPI Cards -->
 <div class="kpi-grid" hx-get="{% url 'ui:dashboard_kpis' %}" hx-trigger="every 60s" hx-swap="outerHTML">
     <div class="kpi-card">

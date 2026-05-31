@@ -84,6 +84,13 @@
             </a>
             {% endif %}
 
+            {% if user.role == 'superadmin' %}
+            <a href="{% url 'ui:stripe_config' %}" class="nav-link {% active_nav request 'stripe_config' %}">
+                <i class="ti ti-settings"></i>
+                Einstellungen
+            </a>
+            {% endif %}
+
             {% if user.role in 'superadmin,support' %}
             <div class="nav-section-title">CRM</div>
             <a href="{% url 'ui:contact_list' %}" class="nav-link {% active_nav request 'contact_list' %}">

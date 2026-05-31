@@ -217,6 +217,12 @@ ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'https://admin.zenico.app')
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
 
 
+# Field Encryption
+# Used for encrypting sensitive fields like Stripe API keys
+# Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY', '')
+
+
 # Logging Configuration
 # Ensure logs directory exists
 LOGS_DIR = BASE_DIR / 'logs'

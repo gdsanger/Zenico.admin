@@ -4,8 +4,9 @@ from django.views.generic import TemplateView
 from django.db.models import Count, Q
 from django.shortcuts import render
 
-from customers.models import Customer, Subscription
+from customers.models import Customer, Subscription, Plan
 from instances.models import Instance, UserLicense
+from billing.models import StripeConfig
 from audit.models import AuditLog
 from ui.utils import calculate_mrr, calculate_customer_growth
 from ui.decorators import role_required
@@ -21,6 +22,20 @@ class DashboardView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # Check Stripe configuration completeness (superadmin only)
+        if self.request.user.role == 'superadmin':
+            config = StripeConfig.get()
+
+            # Count unwired plans
+            unwired_plans = Plan.objects.filter(
+                Q(stripe_product_id='') |
+                Q(stripe_price_id_user='') |
+                Q(stripe_price_id_instance='')
+            ).count()
+
+            context['stripe_config_incomplete'] = not config.is_configured or unwired_plans > 0
+            context['unwired_plans_count'] = unwired_plans
 
         # KPI calculations
         context['total_customers'] = Customer.objects.filter(status='active').count()

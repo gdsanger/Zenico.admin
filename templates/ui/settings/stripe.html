@@ -1,0 +1,265 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Stripe-Konfiguration - zenico.admin{% endblock %}
+
+{% block page_title %}Stripe-Konfiguration{% endblock %}
+
+{% block extra_css %}
+<style>
+.modal-warning {
+    border-top: 4px solid #dc3545;
+}
+.key-display {
+    font-family: 'Courier New', monospace;
+    background: #f8f9fa;
+    padding: 0.5rem;
+    border-radius: 0.25rem;
+    display: inline-block;
+    min-width: 200px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <!-- Mode Selection -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Modus</h3>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'ui:stripe_config_save' %}" id="mode-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="mode" id="mode-test" value="test" {% if mode == 'test' %}checked{% endif %}>
+                            <label class="form-check-label" for="mode-test">
+                                <i class="ti ti-flask"></i> Test-Modus
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio" name="mode" id="mode-live" value="live" {% if mode == 'live' %}checked{% endif %}>
+                            <label class="form-check-label" for="mode-live">
+                                <i class="ti ti-bolt"></i> Live-Modus
+                            </label>
+                        </div>
+                    </div>
+                    {% if mode == 'live' %}
+                    <div class="alert alert-warning">
+                        <i class="ti ti-alert-triangle"></i> <strong>Live-Modus aktiv</strong> — Echte Zahlungen werden verarbeitet
+                    </div>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-check"></i> Speichern
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Test Keys -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">API Keys — Test</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Secret Key</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ test_secret_key_masked }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_secret')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-test-secret" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="test_secret_key" class="form-control mb-2" placeholder="sk_test_...">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('test_secret')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Publishable Key</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ test_publishable_key|default:"Nicht konfiguriert" }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_pub')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-test-pub" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="test_publishable_key" class="form-control mb-2" placeholder="pk_test_..." value="{{ test_publishable_key }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('test_pub')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Webhook Secret</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ test_webhook_secret_masked }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_webhook')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-test-webhook" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="test_webhook_secret" class="form-control mb-2" placeholder="whsec_...">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('test_webhook')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Live Keys -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">API Keys — Live</h3>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <label class="form-label">Secret Key</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ live_secret_key_masked }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_secret')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-live-secret" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="live_secret_key" class="form-control mb-2" placeholder="sk_live_...">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('live_secret')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Publishable Key</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ live_publishable_key|default:"Nicht konfiguriert" }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_pub')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-live-pub" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="live_publishable_key" class="form-control mb-2" placeholder="pk_live_..." value="{{ live_publishable_key }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('live_pub')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Webhook Secret</label>
+                    <div class="d-flex gap-2">
+                        <span class="key-display">{{ live_webhook_secret_masked }}</span>
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_webhook')">
+                            <i class="ti ti-edit"></i> Ändern
+                        </button>
+                    </div>
+                    <div id="edit-live-webhook" class="mt-2" style="display: none;">
+                        <form method="post" action="{% url 'ui:stripe_config_save' %}">
+                            {% csrf_token %}
+                            <input type="hidden" name="mode" value="{{ mode }}">
+                            <input type="text" name="live_webhook_secret" class="form-control mb-2" placeholder="whsec_...">
+                            <button type="submit" class="btn btn-sm btn-primary">Speichern</button>
+                            <button type="button" class="btn btn-sm btn-secondary" onclick="cancelEdit('live_webhook')">Abbrechen</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Connection Test -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h3 class="card-title">Verbindung prüfen</h3>
+            </div>
+            <div class="card-body">
+                <button type="button" class="btn btn-primary" onclick="testConnection()">
+                    <i class="ti ti-plug"></i> Stripe-Verbindung testen
+                </button>
+                <div id="connection-result" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- Plan Wiring Link -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <a href="{% url 'ui:stripe_plan_wiring' %}" class="btn btn-lg btn-success">
+                    <i class="ti ti-link"></i> Zur Plan-Verdrahtung
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function editKey(keyType) {
+    document.getElementById('edit-' + keyType).style.display = 'block';
+}
+
+function cancelEdit(keyType) {
+    document.getElementById('edit-' + keyType).style.display = 'none';
+}
+
+async function testConnection() {
+    const resultDiv = document.getElementById('connection-result');
+    resultDiv.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div> Teste Verbindung...';
+
+    try {
+        const response = await fetch('{% url "ui:stripe_connection_test" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            resultDiv.innerHTML = `
+                <div class="alert alert-success">
+                    <i class="ti ti-check"></i> <strong>Verbunden</strong><br>
+                    Account: ${data.account_name}<br>
+                    Modus: ${data.mode}<br>
+                    ID: ${data.account_id}
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="ti ti-x"></i> <strong>Verbindung fehlgeschlagen</strong><br>
+                    ${data.error}
+                </div>
+            `;
+        }
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="ti ti-x"></i> <strong>Fehler</strong><br>
+                ${error.message}
+            </div>
+        `;
+    }
+}
+</script>
+{% endblock %}
