@@ -1,0 +1,29 @@
+🎓 Ihr Bildungsrabatt wurde genehmigt!
+
+Sehr geehrte Damen und Herren von {{ institution_name }},
+
+wir freuen uns, Ihnen mitteilen zu können, dass Ihre Bewerbung für den Zenico-Bildungsrabatt genehmigt wurde!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Ihr Coupon-Code:
+
+{{ coupon_code }}
+
+{{ discount_percent }}% Rabatt · Dauerhaft gültig
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+So lösen Sie den Code ein:
+
+1. Besuchen Sie {{ frontend_base_url }} und erstellen Sie ein Konto
+2. Wählen Sie Ihren gewünschten Tarif aus
+3. Geben Sie beim Checkout den Code {{ coupon_code }} ein
+4. Der Rabatt wird automatisch angewendet – dauerhaft!
+
+💡 Wichtig: Dieser Code kann einmal eingelöst werden und gilt dann dauerhaft für Ihr Abonnement. Der Rabatt verlängert sich automatisch bei jeder Zahlung.
+
+Zenico jetzt starten: {{ frontend_base_url }}
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr Zenico-Team

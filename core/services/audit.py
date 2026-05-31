@@ -58,6 +58,11 @@ class AuditAction:
     CONTACT_CONVERTED = "contact.converted"
     CONTACT_NOTE_ADDED = "contact.note_added"
 
+    # Education Requests
+    EDUCATION_REQUEST_CREATED = "education_request.created"
+    EDUCATION_REQUEST_APPROVED = "education_request.approved"
+    EDUCATION_REQUEST_REJECTED = "education_request.rejected"
+
     # Newsletter
     SUBSCRIBER_CREATED = "subscriber.created"
     SUBSCRIBER_CONFIRMED = "subscriber.confirmed"

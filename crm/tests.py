@@ -6,10 +6,11 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.db.utils import IntegrityError
 from django.utils import timezone
+from unittest.mock import patch, MagicMock
 
 from accounts.models import AdminUser
 from customers.models import Customer
-from crm.models import Contact, ContactNote
+from crm.models import Contact, ContactNote, EducationRequest
 from newsletter.models import (
     Subscriber, Campaign, CampaignMail,
     AutomationSequence, SequenceStep, SequenceEnrollment
@@ -447,3 +448,193 @@ class AcceptanceCriteriaTests(TestCase):
         campaign.status = 'cancelled'
         campaign.save()
         self.assertFalse(campaign.is_editable)
+
+
+class EducationRequestModelTests(TestCase):
+    """Test EducationRequest model."""
+
+    def test_education_request_creation(self):
+        """Test creating an education request."""
+        request = EducationRequest.objects.create(
+            institution_name='TU München',
+            email='info@tum.de',
+            institution_type='university',
+            user_count=25,
+            status='pending'
+        )
+        self.assertEqual(request.status, 'pending')
+        self.assertEqual(request.institution_name, 'TU München')
+        self.assertEqual(request.status_text, 'Offen')
+        self.assertEqual(request.status_badge, 'warning')
+
+    def test_education_request_status_properties(self):
+        """Test status badge and text properties."""
+        request = EducationRequest.objects.create(
+            institution_name='Test School',
+            email='test@school.com',
+            institution_type='school',
+            user_count=10,
+            status='pending'
+        )
+
+        # Test pending
+        self.assertEqual(request.status_badge, 'warning')
+        self.assertEqual(request.status_text, 'Offen')
+
+        # Test approved
+        request.status = 'approved'
+        self.assertEqual(request.status_badge, 'success')
+        self.assertEqual(request.status_text, 'Genehmigt')
+
+        # Test rejected
+        request.status = 'rejected'
+        self.assertEqual(request.status_badge, 'danger')
+        self.assertEqual(request.status_text, 'Abgelehnt')
+
+    def test_education_request_str(self):
+        """Test string representation."""
+        request = EducationRequest.objects.create(
+            institution_name='Test Institution',
+            email='test@institution.com',
+            institution_type='nonprofit',
+            user_count=50,
+            status='pending'
+        )
+        self.assertEqual(str(request), 'Test Institution (pending)')
+
+
+class EducationRequestAPITests(TestCase):
+    """Test Education Request API endpoint."""
+
+    def setUp(self):
+        self.url = '/api/education-discount/'
+
+    @patch('crm.api.MailService.send_template')
+    def test_create_education_request_success(self, mock_mail):
+        """Test successful education request creation."""
+        mock_mail.return_value = True
+
+        data = {
+            'institution_name': 'TU München',
+            'email': 'info@tum.de',
+            'institution_type': 'university',
+            'website': 'https://tum.de',
+            'description': 'Für unser PM-Seminar',
+            'user_count': 25,
+            'ip_address': '1.2.3.4'
+        }
+
+        response = self.client.post(self.url, data, content_type='application/json')
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()['status'], 'received')
+
+        # Verify request was created
+        request = EducationRequest.objects.get(email='info@tum.de')
+        self.assertEqual(request.institution_name, 'TU München')
+        self.assertEqual(request.user_count, 25)
+        self.assertEqual(request.status, 'pending')
+
+        # Verify emails were sent
+        self.assertEqual(mock_mail.call_count, 2)  # admin notification + confirmation
+
+    def test_create_education_request_missing_required_fields(self):
+        """Test validation of required fields."""
+        data = {
+            'institution_name': 'Test',
+            # missing email and user_count
+        }
+
+        response = self.client.post(self.url, data, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+    def test_create_education_request_invalid_user_count(self):
+        """Test validation of user_count."""
+        data = {
+            'institution_name': 'Test',
+            'email': 'test@example.com',
+            'user_count': 'invalid',
+        }
+
+        response = self.client.post(self.url, data, content_type='application/json')
+        self.assertEqual(response.status_code, 400)
+
+
+class EducationRequestServiceTests(TestCase):
+    """Test EducationRequestService."""
+
+    def setUp(self):
+        self.admin = AdminUser.objects.create_user(
+            email='admin@test.com',
+            password='password123',
+            display_name='Test Admin',
+            role='superadmin'
+        )
+
+    @patch('crm.education_service.CouponService.create_stripe_coupon')
+    @patch('crm.education_service.MailService.send_template')
+    def test_approve_education_request(self, mock_mail, mock_stripe):
+        """Test approving an education request."""
+        from crm.education_service import EducationRequestService
+
+        # Create request
+        request = EducationRequest.objects.create(
+            institution_name='TU München',
+            email='info@tum.de',
+            institution_type='university',
+            user_count=25,
+            status='pending'
+        )
+
+        mock_mail.return_value = True
+        mock_stripe.return_value = ('co_test123', 'promo_test123')
+
+        # Approve
+        coupon = EducationRequestService.approve(request, self.admin)
+
+        # Verify request was updated
+        request.refresh_from_db()
+        self.assertEqual(request.status, 'approved')
+        self.assertEqual(request.reviewed_by, self.admin)
+        self.assertIsNotNone(request.reviewed_at)
+        self.assertEqual(request.coupon, coupon)
+
+        # Verify coupon was created
+        self.assertIsNotNone(coupon)
+        self.assertTrue(coupon.code.startswith('EDU-'))
+        self.assertEqual(coupon.discount_percent, 50)
+        self.assertEqual(coupon.duration, 'forever')
+        self.assertEqual(coupon.max_redemptions, 1)
+
+        # Verify email was sent
+        mock_mail.assert_called_once()
+
+    @patch('crm.education_service.MailService.send_template')
+    def test_reject_education_request(self, mock_mail):
+        """Test rejecting an education request."""
+        from crm.education_service import EducationRequestService
+
+        # Create request
+        request = EducationRequest.objects.create(
+            institution_name='Test School',
+            email='test@school.com',
+            institution_type='school',
+            user_count=10,
+            status='pending'
+        )
+
+        mock_mail.return_value = True
+
+        # Reject with reason
+        reason = 'Nicht den Kriterien entsprechend'
+        EducationRequestService.reject(request, self.admin, reason)
+
+        # Verify request was updated
+        request.refresh_from_db()
+        self.assertEqual(request.status, 'rejected')
+        self.assertEqual(request.reviewed_by, self.admin)
+        self.assertIsNotNone(request.reviewed_at)
+        self.assertEqual(request.notes, reason)
+
+        # Verify email was sent
+        mock_mail.assert_called_once()

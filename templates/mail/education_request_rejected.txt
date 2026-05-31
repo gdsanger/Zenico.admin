@@ -1,0 +1,21 @@
+Ihre Bewerbung für den Zenico-Bildungsrabatt
+
+Sehr geehrte Damen und Herren von {{ institution_name }},
+
+vielen Dank für Ihr Interesse am Zenico-Bildungsrabatt.
+
+Nach sorgfältiger Prüfung Ihrer Bewerbung müssen wir Ihnen leider mitteilen, dass wir Ihrem Antrag derzeit nicht entsprechen können.
+
+{% if reason %}
+Begründung:
+{{ reason }}
+{% endif %}
+
+Wir laden Sie dennoch herzlich ein, Zenico zu unseren regulären Konditionen zu testen. Profitieren Sie von unseren flexiblen Tarifen und testen Sie Zenico 14 Tage lang kostenlos.
+
+Zenico kostenlos testen: {{ frontend_base_url }}
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+Mit freundlichen Grüßen
+Ihr Zenico-Team
