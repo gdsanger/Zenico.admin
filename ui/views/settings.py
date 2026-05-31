@@ -165,14 +165,24 @@ def stripe_connection_test(request):
     Test connection to Stripe with current configuration.
     """
     try:
+        import stripe as stripe_lib
         from core.services.stripe import get_stripe
 
-        stripe_api = get_stripe()
-        account = stripe_api.Account.retrieve()
+        get_stripe()  # setzt stripe.api_key, sonst nichts
 
-        # Get account details
-        account_name = account.get('business_profile', {}).get('name') or account.get('settings', {}).get('dashboard', {}).get('display_name') or account.id
-        mode = 'live' if account.livemode else 'test'
+        account = stripe_lib.Account.retrieve()
+        account_dict = account.to_dict()
+
+        logger.info("Stripe account data: %s", account_dict)
+
+        account_name = (
+            account_dict.get('business_profile', {}).get('name')
+            or account_dict.get('settings', {}).get('dashboard', {}).get('display_name')
+            or account_dict.get('id')
+        )
+
+        mode = 'live' if account_dict.get('livemode') else 'test'
+
 
         return JsonResponse({
             'success': True,
