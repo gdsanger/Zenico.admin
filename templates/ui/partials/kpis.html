@@ -1,0 +1,38 @@
+{% load ui_tags %}
+<div class="kpi-grid" hx-get="{% url 'ui:dashboard_kpis' %}" hx-trigger="every 60s" hx-swap="outerHTML">
+    <div class="kpi-card">
+        <div class="kpi-label">Kunden</div>
+        <div class="kpi-value">{{ total_customers }}</div>
+        <div class="kpi-subinfo {% if new_customers_this_month > 0 %}positive{% endif %}">
+            +{{ new_customers_this_month }} diesen Monat
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">Instanzen</div>
+        <div class="kpi-value">{{ total_instances }}</div>
+        <div class="kpi-subinfo">
+            {% if provisioning_instances > 0 %}
+            davon {{ provisioning_instances }} provisioning
+            {% else %}
+            alle aktiv
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">Aktive Lizenzen</div>
+        <div class="kpi-value">{{ total_licenses }}</div>
+        <div class="kpi-subinfo">
+            von {{ total_licenses_booked }} gebucht
+        </div>
+    </div>
+
+    <div class="kpi-card">
+        <div class="kpi-label">MRR</div>
+        <div class="kpi-value">{{ mrr|money }}</div>
+        <div class="kpi-subinfo text-muted">
+            Monatlicher Umsatz
+        </div>
+    </div>
+</div>

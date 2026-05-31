@@ -143,3 +143,43 @@ class RoleDecoratorTestCase(TestCase):
         self.client.force_login(self.billing)
         response = self.client.get(reverse('subscription_list'))
         self.assertEqual(response.status_code, 200)
+
+
+class DashboardEndpointsTestCase(TestCase):
+    """Test dashboard HTMX endpoints."""
+
+    def setUp(self):
+        """Create test user."""
+        self.user = AdminUser.objects.create_superuser(
+            email='test@zenico.app',
+            password='testpass123',
+            display_name='Test User'
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_dashboard_kpis_endpoint(self):
+        """Test dashboard KPIs endpoint returns successfully."""
+        response = self.client.get(reverse('ui:dashboard_kpis'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'kpi-grid')
+
+    def test_dashboard_activity_endpoint(self):
+        """Test dashboard activity endpoint returns successfully."""
+        response = self.client.get(reverse('ui:dashboard_activity'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_dashboard_kpis_requires_login(self):
+        """Test dashboard KPIs endpoint requires authentication."""
+        self.client.logout()
+        response = self.client.get(reverse('ui:dashboard_kpis'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+
+    def test_dashboard_activity_requires_login(self):
+        """Test dashboard activity endpoint requires authentication."""
+        self.client.logout()
+        response = self.client.get(reverse('ui:dashboard_activity'))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/login/', response.url)
+
