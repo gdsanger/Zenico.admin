@@ -1,0 +1,18 @@
+Neue Bildungsrabatt-Anfrage
+
+Eine neue Anfrage für den Zenico-Bildungsrabatt ist eingegangen:
+
+Einrichtung: {{ institution_name }}
+Typ: {{ institution_type }}
+E-Mail: {{ email }}
+Website: {{ website|default:"–" }}
+Geschätzte Nutzerzahl: {{ user_count }}
+
+Beschreibung:
+{{ description|default:"–" }}
+
+IP-Adresse: {{ ip_address }}
+
+Im Admin ansehen: {{ admin_url }}
+
+Diese Benachrichtigung wurde automatisch generiert.
