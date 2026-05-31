@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% load django_bootstrap5 %}
+
+{% block title %}{{ education_request.institution_name }} | Bildungsrabatt{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <a href="{% url 'ui:education_request_list' %}" class="text-decoration-none text-muted">
+                <i class="ti ti-arrow-left"></i> Zurück zur Liste
+            </a>
+            <h1 class="mt-2">{{ education_request.institution_name }}</h1>
+        </div>
+        <div>
+            <span class="badge bg-{{ education_request.status_badge }} fs-6">
+                {{ education_request.status_text }}
+            </span>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Column: Institution Info -->
+        <div class="col-md-7">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Einrichtungs-Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Typ:</dt>
+                        <dd class="col-sm-8">{{ education_request.get_institution_type_display }}</dd>
+
+                        <dt class="col-sm-4">E-Mail:</dt>
+                        <dd class="col-sm-8"><a href="mailto:{{ education_request.email }}">{{ education_request.email }}</a></dd>
+
+                        <dt class="col-sm-4">Website:</dt>
+                        <dd class="col-sm-8">
+                            {% if education_request.website %}
+                                <a href="{{ education_request.website }}" target="_blank">{{ education_request.website }}</a>
+                            {% else %}
+                                <span class="text-muted">–</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-sm-4">Geschätzte Nutzer:</dt>
+                        <dd class="col-sm-8">{{ education_request.user_count }}</dd>
+
+                        <dt class="col-sm-4">Beschreibung:</dt>
+                        <dd class="col-sm-8">
+                            {% if education_request.description %}
+                                {{ education_request.description|linebreaks }}
+                            {% else %}
+                                <span class="text-muted">–</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Internal Notes (always visible) -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Interne Notizen</h5>
+                </div>
+                <div class="card-body">
+                    {% if education_request.notes %}
+                        <p class="mb-0">{{ education_request.notes|linebreaks }}</p>
+                    {% else %}
+                        <p class="text-muted mb-0">Keine internen Notizen vorhanden.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Coupon Info (if approved) -->
+            {% if education_request.status == 'approved' and education_request.coupon %}
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Generierter Coupon</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">Code:</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-success fs-6 font-monospace">{{ education_request.coupon.code }}</span>
+                        </dd>
+
+                        <dt class="col-sm-4">Rabatt:</dt>
+                        <dd class="col-sm-8">{{ education_request.coupon.discount_display }} · {{ education_request.coupon.duration_display }}</dd>
+
+                        <dt class="col-sm-4">Genehmigt von:</dt>
+                        <dd class="col-sm-8">{{ education_request.reviewed_by.email }} am {{ education_request.reviewed_at|date:"d.m.Y H:i" }} Uhr</dd>
+
+                        <dt class="col-sm-4">Coupon-Details:</dt>
+                        <dd class="col-sm-8">
+                            <a href="{% url 'ui:coupon_detail' education_request.coupon.id %}" class="btn btn-sm btn-outline-primary">
+                                Im Coupon-Manager ansehen →
+                            </a>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right Column: Meta + Actions -->
+        <div class="col-md-5">
+            <!-- Meta Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Meta-Informationen</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">IP-Adresse:</dt>
+                        <dd class="col-sm-7"><code>{{ education_request.ip_address|default:"–" }}</code></dd>
+
+                        <dt class="col-sm-5">Eingegangen:</dt>
+                        <dd class="col-sm-7">{{ education_request.created_at|date:"d.m.Y H:i" }} Uhr</dd>
+
+                        {% if education_request.reviewed_at %}
+                        <dt class="col-sm-5">Bearbeitet:</dt>
+                        <dd class="col-sm-7">{{ education_request.reviewed_at|date:"d.m.Y H:i" }} Uhr</dd>
+
+                        <dt class="col-sm-5">Bearbeitet von:</dt>
+                        <dd class="col-sm-7">{{ education_request.reviewed_by.email }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            <!-- Actions (only if pending) -->
+            {% if education_request.status == 'pending' %}
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Entscheidung</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Diese Anfrage wartet auf Ihre Entscheidung.</p>
+
+                    <!-- Approve Button -->
+                    <button type="button" class="btn btn-success w-100 mb-2" data-bs-toggle="modal" data-bs-target="#approveModal">
+                        <i class="ti ti-check"></i> Genehmigen
+                    </button>
+
+                    <!-- Reject Button -->
+                    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                        <i class="ti ti-x"></i> Ablehnen
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Approve Modal -->
+<div class="modal fade" id="approveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Anfrage genehmigen</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Sie sind dabei, diese Anfrage zu <strong>genehmigen</strong>.</p>
+                <div class="alert alert-info mb-0">
+                    <strong>Dies wird:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Einen Coupon-Code im Format <code>EDU-{SLUG}-{XXXX}</code> generieren</li>
+                        <li>50% Rabatt dauerhaft gewähren</li>
+                        <li>Den Code in Stripe anlegen</li>
+                        <li>Eine Genehmigungsmail an {{ education_request.email }} senden</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <form method="post" action="{% url 'ui:education_request_approve' education_request.id %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Jetzt genehmigen</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'ui:education_request_reject' education_request.id %}">
+                {% csrf_token %}
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">Anfrage ablehnen</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Sie sind dabei, diese Anfrage <strong>abzulehnen</strong>.</p>
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Ablehnungsgrund (optional):</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="4"
+                                  placeholder="Optional: Begründung für die Ablehnung..."></textarea>
+                        <small class="text-muted">Falls angegeben, wird dieser Text in der Ablehnungsmail angezeigt.</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-danger">Ablehnen und Mail senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

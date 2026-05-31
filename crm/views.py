@@ -12,7 +12,8 @@ from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.utils import timezone
 
-from crm.models import Contact, ContactNote
+from crm.models import Contact, ContactNote, EducationRequest
+from crm.education_service import EducationRequestService
 from customers.models import Customer
 from ui.decorators import role_required
 from core.services.audit import AuditService, AuditAction
@@ -334,4 +335,130 @@ def get_note_form(request, contact_id):
     """
     contact = get_object_or_404(Contact, id=contact_id)
     return render(request, 'ui/crm/partials/note_form.html', {'contact': contact})
+
+
+# ============================================================================
+# Education Request Views
+# ============================================================================
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('superadmin', 'support'), name='dispatch')
+class EducationRequestListView(ListView):
+    """
+    Education request list view with status filters.
+    """
+    model = EducationRequest
+    template_name = 'ui/crm/education/list.html'
+    context_object_name = 'requests'
+    paginate_by = 25
+
+    def get_queryset(self):
+        queryset = EducationRequest.objects.select_related('coupon', 'reviewed_by').order_by('-created_at')
+
+        # Filter by status
+        status = self.request.GET.get('status', '')
+        if status:
+            queryset = queryset.filter(status=status)
+
+        # Search
+        q = self.request.GET.get('q', '')
+        if q:
+            queryset = queryset.filter(
+                Q(institution_name__icontains=q) |
+                Q(email__icontains=q)
+            )
+
+        return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('q', '')
+        context['current_status'] = self.request.GET.get('status', '')
+
+        # Count by status for filter tabs
+        context['status_counts'] = {
+            'all': EducationRequest.objects.count(),
+            'pending': EducationRequest.objects.filter(status='pending').count(),
+            'approved': EducationRequest.objects.filter(status='approved').count(),
+            'rejected': EducationRequest.objects.filter(status='rejected').count(),
+        }
+
+        return context
+
+    def render_to_response(self, context, **response_kwargs):
+        # If HTMX request, return only the rows partial
+        if self.request.headers.get('HX-Request'):
+            return render(self.request, 'ui/crm/education/partials/request_rows.html', context)
+        return super().render_to_response(context, **response_kwargs)
+
+
+@method_decorator(login_required, name='dispatch')
+@method_decorator(role_required('superadmin', 'support'), name='dispatch')
+class EducationRequestDetailView(DetailView):
+    """
+    Education request detail view with approve/reject actions.
+    """
+    model = EducationRequest
+    template_name = 'ui/crm/education/detail.html'
+    context_object_name = 'education_request'
+    pk_url_kwarg = 'request_id'
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def approve_education_request(request, request_id):
+    """
+    Approve education request and create coupon.
+    """
+    education_request = get_object_or_404(EducationRequest, id=request_id)
+
+    # Check if already processed
+    if education_request.status != 'pending':
+        messages.error(request, 'Diese Anfrage wurde bereits bearbeitet.')
+        return redirect('ui:education_request_detail', request_id=request_id)
+
+    try:
+        # Approve request (creates coupon + sends email)
+        coupon = EducationRequestService.approve(education_request, request.user)
+
+        messages.success(
+            request,
+            f'Anfrage genehmigt! Coupon {coupon.code} wurde erstellt und an {education_request.email} gesendet.'
+        )
+    except Exception as e:
+        messages.error(request, f'Fehler beim Genehmigen: {str(e)}')
+
+    return redirect('ui:education_request_detail', request_id=request_id)
+
+
+@login_required
+@role_required('superadmin', 'support')
+@require_POST
+def reject_education_request(request, request_id):
+    """
+    Reject education request with optional reason.
+    """
+    education_request = get_object_or_404(EducationRequest, id=request_id)
+
+    # Check if already processed
+    if education_request.status != 'pending':
+        messages.error(request, 'Diese Anfrage wurde bereits bearbeitet.')
+        return redirect('ui:education_request_detail', request_id=request_id)
+
+    # Get rejection reason from form
+    reason = request.POST.get('reason', '').strip()
+
+    try:
+        # Reject request (sends email)
+        EducationRequestService.reject(education_request, request.user, reason)
+
+        messages.success(
+            request,
+            f'Anfrage abgelehnt. Eine Benachrichtigung wurde an {education_request.email} gesendet.'
+        )
+    except Exception as e:
+        messages.error(request, f'Fehler beim Ablehnen: {str(e)}')
+
+    return redirect('ui:education_request_detail', request_id=request_id)
 
