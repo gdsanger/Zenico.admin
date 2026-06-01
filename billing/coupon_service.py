@@ -92,12 +92,10 @@ class CouponService:
                 },
             }
 
-            # Set validity period
-            if coupon.valid_from:
+            # Set expiration time if valid_until is set
+            if coupon.valid_until:
                 # Stripe expects Unix timestamp
-                promo_params['restrictions'] = {
-                    'first_time_transaction': False,
-                }
+                promo_params['expires_at'] = int(coupon.valid_until.timestamp())
 
             if coupon.max_redemptions is not None:
                 promo_params['max_redemptions'] = coupon.max_redemptions

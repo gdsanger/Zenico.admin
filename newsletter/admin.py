@@ -12,7 +12,7 @@ class SubscriberAdmin(admin.ModelAdmin):
 
 @admin.register(Campaign)
 class CampaignAdmin(admin.ModelAdmin):
-    list_display = ('name', 'subject', 'email', 'segment', 'status')
+    list_display = ('name', 'subject', 'segment', 'status')
     list_filter = ('segment', 'status')
-    search_fields = ('name', 'subject', 'email', 'segment', 'status')
+    search_fields = ('name', 'subject', 'segment', 'status')
     ordering = ('-id',)
