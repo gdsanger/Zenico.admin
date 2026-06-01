@@ -84,8 +84,12 @@ class CouponService:
             stripe_coupon = stripe.Coupon.create(**coupon_params)
 
             # Prepare promotion code parameters
+            # Note: Stripe API requires coupon to be nested under promotion parameter
             promo_params = {
-                'coupon': stripe_coupon.id,
+                'promotion': {
+                    'type': 'coupon',
+                    'coupon': stripe_coupon.id,
+                },
                 'code': coupon.code,
                 'metadata': {
                     'coupon_id': str(coupon.id),
