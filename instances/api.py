@@ -15,6 +15,7 @@ from rest_framework.permissions import IsAuthenticated
 
 from instances.authentication import ApiKeyAuthentication
 from instances.models import Instance, InstanceHeartbeat, AITokenUsage, get_week_start
+from ai.models import AITokenBudget
 from core.services.audit import AuditService, AuditAction
 from datetime import timezone as dt_timezone
 
@@ -132,21 +133,12 @@ class InstanceRegisterView(APIView):
         subscription = instance.subscription
         plan = subscription.plan if subscription else None
 
-        # Calculate AI token usage for this week
-        week_start_date = get_week_start()
-        ai_tokens_used = AITokenUsage.objects.filter(
-            instance=instance,
-            week_start=week_start_date
-        ).aggregate(
-            total=Sum('tokens_in') + Sum('tokens_out')
-        )['total'] or 0
-
-        # Get AI weekly limit from subscription or plan
-        # For now, using a default of 200000 - this should be configurable per plan
-        ai_weekly_limit = 200000 if subscription and subscription.ai_addon_active else 0
-        ai_tokens_remaining = max(0, ai_weekly_limit - ai_tokens_used)
+        # Get or create AI token budget
+        budget, _ = AITokenBudget.objects.get_or_create(instance=instance)
+        budget._reset_week_if_needed()
 
         # Calculate week reset time (next Monday at 00:00:00 UTC)
+        week_start_date = get_week_start()
         next_monday = week_start_date + timezone.timedelta(days=7)
         week_resets_at = timezone.datetime.combine(
             next_monday,
@@ -158,9 +150,9 @@ class InstanceRegisterView(APIView):
             'user_seats': instance.user_seats,
             'instance_status': instance.status,
             'ai_addon': subscription.ai_addon_active if subscription else False,
-            'ai_weekly_limit': ai_weekly_limit,
-            'ai_tokens_used_this_week': ai_tokens_used,
-            'ai_tokens_remaining_this_week': ai_tokens_remaining,
+            'ai_weekly_limit': budget.weekly_limit,
+            'ai_tokens_used_this_week': budget.tokens_used_week,
+            'ai_tokens_remaining_this_week': budget.tokens_remaining,
             'week_resets_at': week_resets_at.isoformat(),
         }
 
