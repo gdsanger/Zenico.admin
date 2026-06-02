@@ -1,5 +1,6 @@
 import uuid
 import secrets
+from datetime import date, timedelta
 from django.db import models
 from django.core.exceptions import ValidationError
 from customers.models import Customer, Subscription, SLUG_VALIDATOR
@@ -139,6 +140,29 @@ class Instance(models.Model):
         null=True,
         blank=True,
         verbose_name='health check OK'
+    )
+    # Phone-Home tracking fields
+    reported_url = models.URLField(
+        blank=True,
+        verbose_name='reported URL',
+        help_text='URL reported by the instance during phone-home'
+    )
+    reported_version = models.CharField(
+        max_length=30,
+        blank=True,
+        verbose_name='reported version',
+        help_text='Version reported by the instance during phone-home'
+    )
+    reported_active_users = models.PositiveIntegerField(
+        default=0,
+        verbose_name='reported active users',
+        help_text='Number of active users reported by the instance'
+    )
+    last_heartbeat = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='last heartbeat',
+        help_text='Timestamp of the last phone-home call'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='created at')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='updated at')
@@ -328,3 +352,115 @@ class UserLicense(models.Model):
                         f'and {active_licenses} are already in use.'
                     )
                 })
+
+
+def get_week_start(d=None):
+    """
+    Returns the Monday of the current (or provided) week.
+
+    Args:
+        d: Optional date to get week start for. Defaults to today.
+
+    Returns:
+        date: The Monday of the week containing d
+    """
+    d = d or date.today()
+    return d - timedelta(days=d.weekday())
+
+
+class AITokenUsage(models.Model):
+    """
+    Tracks AI token consumption per instance.
+    Used for weekly limit enforcement and monthly reporting.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(
+        Instance,
+        on_delete=models.CASCADE,
+        related_name='ai_token_usage',
+        verbose_name='instance'
+    )
+    model = models.CharField(
+        max_length=100,
+        verbose_name='AI model',
+        help_text='AI model used, e.g. "gpt-4o", "claude-sonnet-4-6"'
+    )
+    tokens_in = models.PositiveIntegerField(
+        verbose_name='tokens in',
+        help_text='Input tokens used in this request'
+    )
+    tokens_out = models.PositiveIntegerField(
+        verbose_name='tokens out',
+        help_text='Output tokens used in this request'
+    )
+    week_start = models.DateField(
+        verbose_name='week start',
+        help_text='Monday of the calendar week (for weekly aggregation)'
+    )
+    month = models.DateField(
+        verbose_name='month',
+        help_text='First day of the month (for monthly aggregation)'
+    )
+    requested_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='requested at'
+    )
+
+    class Meta:
+        verbose_name = 'AI Token Usage'
+        verbose_name_plural = 'AI Token Usage'
+        ordering = ['-requested_at']
+        indexes = [
+            models.Index(fields=['instance', 'week_start'], name='idx_instance_week'),
+            models.Index(fields=['instance', 'month'], name='idx_instance_month'),
+        ]
+
+    def __str__(self):
+        return f"{self.instance.display_name} - {self.model} ({self.tokens_in + self.tokens_out} tokens)"
+
+
+class InstanceHeartbeat(models.Model):
+    """
+    Logs every phone-home call from an instance.
+    Used for health monitoring in the admin interface.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    instance = models.ForeignKey(
+        Instance,
+        on_delete=models.CASCADE,
+        related_name='heartbeats',
+        verbose_name='instance'
+    )
+    url = models.URLField(
+        verbose_name='URL',
+        help_text='URL reported by the instance'
+    )
+    version = models.CharField(
+        max_length=30,
+        verbose_name='version',
+        help_text='Version reported by the instance'
+    )
+    active_users = models.PositiveIntegerField(
+        verbose_name='active users',
+        help_text='Number of active users reported'
+    )
+    ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        verbose_name='IP address',
+        help_text='IP address of the instance'
+    )
+    received_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='received at'
+    )
+
+    class Meta:
+        verbose_name = 'Instance Heartbeat'
+        verbose_name_plural = 'Instance Heartbeats'
+        ordering = ['-received_at']
+
+    def __str__(self):
+        return f"{self.instance.display_name} - {self.version} ({self.received_at})"

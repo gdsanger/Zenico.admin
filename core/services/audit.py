@@ -39,6 +39,16 @@ class AuditAction:
     # API Key
     API_KEY_REGENERATED = "api_key.regenerated"
 
+    # Instance Heartbeat
+    INSTANCE_HEARTBEAT = "instance.heartbeat"
+    INSTANCE_VERSION_CHANGED = "instance.version_changed"
+
+    # AI
+    AI_REQUEST_SUCCESS = "ai.request_success"
+    AI_REQUEST_FAILED = "ai.request_failed"
+    AI_ADDON_NOT_ACTIVE = "ai.addon_not_active"
+    AI_TOKEN_LIMIT_EXCEEDED = "ai.token_limit_exceeded"
+
     # User License
     LICENSE_ACTIVATED = "user_license.activated"
     LICENSE_DEACTIVATED = "user_license.deactivated"

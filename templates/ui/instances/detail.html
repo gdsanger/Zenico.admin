@@ -119,6 +119,104 @@
     </div>
 </div>
 
+<!-- Heartbeat Status -->
+{% if instance.last_heartbeat %}
+<div class="table-card mt-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Heartbeat-Status</h3>
+    </div>
+    <div class="p-3">
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Letzter Kontakt:</th>
+                        <td>{{ heartbeat_status }}</td>
+                    </tr>
+                    <tr>
+                        <th>Gemeldete URL:</th>
+                        <td>
+                            {% if instance.reported_url %}
+                            <a href="{{ instance.reported_url }}" target="_blank">{{ instance.reported_url }}</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th width="40%">Version:</th>
+                        <td>{{ instance.reported_version|default:"-" }}</td>
+                    </tr>
+                    <tr>
+                        <th>Aktive User gemeldet:</th>
+                        <td>{{ instance.reported_active_users }} / {{ instance.user_seats }} Seats</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- AI Token Usage -->
+{% if instance.subscription.ai_addon_active %}
+<div class="table-card mt-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">KI-Token Verbrauch</h3>
+    </div>
+    <div class="p-3">
+        <div class="mb-3">
+            <div class="d-flex justify-content-between mb-2">
+                <span>Diese Woche: {{ ai_tokens_used_this_week|floatformat:0 }} / {{ ai_weekly_limit|floatformat:0 }} Token</span>
+                <span>{{ ai_usage_percentage|floatformat:1 }}%</span>
+            </div>
+            <div class="progress" style="height: 20px;">
+                <div class="progress-bar {% if ai_usage_percentage >= 90 %}bg-danger{% elif ai_usage_percentage >= 75 %}bg-warning{% else %}bg-success{% endif %}"
+                     role="progressbar"
+                     style="width: {{ ai_usage_percentage }}%;"
+                     aria-valuenow="{{ ai_usage_percentage }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                </div>
+            </div>
+            <small class="text-muted">Reset: {{ ai_week_resets|date:"l, d.m.Y" }}</small>
+        </div>
+
+        {% if ai_monthly_usage %}
+        <h4 class="h6 mt-4 mb-3">Monatlicher Verbrauch</h4>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Monat</th>
+                        <th class="text-end">Tokens In</th>
+                        <th class="text-end">Tokens Out</th>
+                        <th class="text-end">Gesamt</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for month in ai_monthly_usage %}
+                    <tr>
+                        <td>{{ month.month }}</td>
+                        <td class="text-end">{{ month.tokens_in|floatformat:0 }}</td>
+                        <td class="text-end">{{ month.tokens_out|floatformat:0 }}</td>
+                        <td class="text-end"><strong>{{ month.total|floatformat:0 }}</strong></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Noch keine monatlichen Daten vorhanden.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
 <!-- User Licenses -->
 <div class="table-card mt-4">
     <div class="table-card-header">

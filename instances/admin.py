@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Instance, UserLicense
+from .models import Instance, UserLicense, AITokenUsage, InstanceHeartbeat
 
 
 @admin.register(Instance)
@@ -73,6 +73,10 @@ class InstanceAdmin(admin.ModelAdmin):
                 'provisioned_at',
                 'last_health_check',
                 'health_check_ok',
+                'last_heartbeat',
+                'reported_url',
+                'reported_version',
+                'reported_active_users',
             ],
             'classes': ['collapse'],
         }),
@@ -154,4 +158,93 @@ class UserLicenseAdmin(admin.ModelAdmin):
         if obj:  # Editing existing object
             readonly.extend(['instance', 'azure_oid'])
         return readonly
+
+
+@admin.register(AITokenUsage)
+class AITokenUsageAdmin(admin.ModelAdmin):
+    """Admin interface for AITokenUsage model."""
+
+    list_display = [
+        'instance',
+        'model',
+        'tokens_in',
+        'tokens_out',
+        'total_tokens',
+        'week_start',
+        'month',
+        'requested_at',
+    ]
+    list_filter = ['model', 'week_start', 'month', 'instance__customer']
+    search_fields = [
+        'instance__display_name',
+        'instance__customer__company_name',
+        'model',
+    ]
+    readonly_fields = [
+        'id',
+        'instance',
+        'model',
+        'tokens_in',
+        'tokens_out',
+        'total_tokens',
+        'week_start',
+        'month',
+        'requested_at',
+    ]
+    date_hierarchy = 'requested_at'
+    ordering = ['-requested_at']
+
+    def has_add_permission(self, request):
+        """Prevent manual creation of token usage records."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Prevent editing of token usage records."""
+        return False
+
+    def total_tokens(self, obj):
+        """Display total tokens (in + out) in the admin."""
+        return obj.tokens_in + obj.tokens_out
+    total_tokens.short_description = 'Total Tokens'
+
+
+@admin.register(InstanceHeartbeat)
+class InstanceHeartbeatAdmin(admin.ModelAdmin):
+    """Admin interface for InstanceHeartbeat model."""
+
+    list_display = [
+        'instance',
+        'version',
+        'active_users',
+        'url',
+        'ip_address',
+        'received_at',
+    ]
+    list_filter = ['version', 'instance__customer', 'received_at']
+    search_fields = [
+        'instance__display_name',
+        'instance__customer__company_name',
+        'url',
+        'version',
+        'ip_address',
+    ]
+    readonly_fields = [
+        'id',
+        'instance',
+        'url',
+        'version',
+        'active_users',
+        'ip_address',
+        'received_at',
+    ]
+    date_hierarchy = 'received_at'
+    ordering = ['-received_at']
+
+    def has_add_permission(self, request):
+        """Prevent manual creation of heartbeat records."""
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        """Prevent editing of heartbeat records."""
+        return False
 
