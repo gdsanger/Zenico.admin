@@ -55,7 +55,9 @@ class Instance(models.Model):
         ('suspended', 'Suspended'),
         ('deprovisioned', 'Deprovisioned'),
     ]
-
+    @property
+    def is_authenticated(self):
+        return True
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     customer = models.ForeignKey(
         Customer,

@@ -16,6 +16,7 @@ from rest_framework.permissions import IsAuthenticated
 from instances.authentication import ApiKeyAuthentication
 from instances.models import Instance, InstanceHeartbeat, AITokenUsage, get_week_start
 from core.services.audit import AuditService, AuditAction
+from datetime import timezone as dt_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -150,7 +151,7 @@ class InstanceRegisterView(APIView):
         week_resets_at = timezone.datetime.combine(
             next_monday,
             timezone.datetime.min.time()
-        ).replace(tzinfo=timezone.utc)
+        ).replace(tzinfo=dt_timezone.utc)
 
         response_data = {
             'plan': plan.name if plan else 'unknown',
