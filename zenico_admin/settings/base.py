@@ -207,6 +207,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'newsletter.tasks.send_scheduled_campaigns',
         'schedule': crontab(minute='*/5'),  # Every 5 minutes
     },
+    'cleanup-old-heartbeats': {
+        'task': 'instances.tasks.cleanup_old_heartbeats',
+        'schedule': crontab(hour=2, minute=0),  # Daily at 2:00 AM
+    },
 }
 
 
@@ -222,6 +226,12 @@ FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
 # Used for encrypting sensitive fields like Stripe API keys
 # Generate a key with: python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY', '')
+
+
+# AI Provider Configuration
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')
+AI_DEFAULT_PROVIDER = os.getenv('AI_DEFAULT_PROVIDER', 'anthropic')
 
 
 # Logging Configuration
