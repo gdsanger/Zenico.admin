@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'ui',
     'crm',
     'newsletter',
+    'ai',
 ]
 
 MIDDLEWARE = [
