@@ -76,7 +76,11 @@ class AIProviderCreateView(View):
         return render(request, 'ai/provider_form.html', {
             'provider_types': AIProviderType.choices,
             'is_create': True,
-            'form_data': {},
+            'form_data': {
+                'name': '',
+                'provider_type': '',
+                'organization_id': '',
+            },
         })
 
     def post(self, request):
@@ -134,7 +138,11 @@ class AIProviderEditView(View):
             'provider': provider,
             'provider_types': AIProviderType.choices,
             'is_create': False,
-            'form_data': {},
+            'form_data': {
+                'name': '',
+                'provider_type': '',
+                'organization_id': '',
+            },
         })
 
     def post(self, request, pk):
