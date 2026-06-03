@@ -255,3 +255,57 @@ class InstanceLicenseView(APIView):
         }
 
         return Response(response_data, status=status.HTTP_200_OK)
+
+
+class AIAgentListView(APIView):
+    """
+    GET /api/instance/ai/agents/?context=task
+    Authorization: Api-Key {key}
+
+    Gibt alle aktiven Agenten für den angegebenen Kontext zurück.
+    Wird von Zenico.app beim Laden von Task/Projekt/Anhang aufgerufen.
+
+    Query Params:
+        context: task | project | attachment (default: task)
+
+    Response 200:
+    [
+        {
+            "name": "text-optimization-agent",
+            "display_name": "Beschreibung verbessern",
+            "display_description": "Verbessert Formulierung...",
+            "button_icon": "bi-magic"
+        },
+        ...
+    ]
+    """
+    authentication_classes = [ApiKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from ai.models import AIAgent
+
+        context = request.GET.get('context', 'task')
+
+        # Nur gültige Kontexte erlauben
+        valid_contexts = ['task', 'project', 'attachment']
+        if context not in valid_contexts:
+            return Response(
+                {'error': f'Ungültiger Kontext. Erlaubt: {valid_contexts}'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        agents = AIAgent.objects.filter(
+            active=True,
+            context_type=context,
+        ).order_by('sort_order', 'name')
+
+        return Response([
+            {
+                'name':                agent.name,
+                'display_name':        agent.display_name or agent.name,
+                'display_description': agent.display_description,
+                'button_icon':         agent.button_icon or 'bi-stars',
+            }
+            for agent in agents
+        ], status=status.HTTP_200_OK)
