@@ -85,9 +85,14 @@
             {% endif %}
 
             {% if user.role == 'superadmin' %}
+            <div class="nav-section-title">Einstellungen</div>
             <a href="{% url 'ui:stripe_config' %}" class="nav-link {% active_nav request 'stripe_config' %}">
                 <i class="ti ti-settings"></i>
-                Einstellungen
+                Stripe
+            </a>
+            <a href="{% url 'ai:dashboard' %}" class="nav-link {% active_nav request 'ai_dashboard' %}">
+                <i class="ti ti-brain"></i>
+                KI-Verwaltung
             </a>
             {% endif %}
 

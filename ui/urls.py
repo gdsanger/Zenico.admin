@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from ui.views import (
     # Auth
     LoginView,
@@ -169,4 +169,7 @@ urlpatterns = [
     path('newsletter/automations/<uuid:sequence_id>/steps/create/', automation_step_create, name='automation_step_create'),
     path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/edit/', automation_step_edit, name='automation_step_edit'),
     path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/delete/', automation_step_delete, name='automation_step_delete'),
+
+    # AI Administration
+    path('ai/', include('ai.urls', namespace='ai')),
 ]

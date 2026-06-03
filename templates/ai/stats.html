@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}KI-Statistiken - zenico.admin{% endblock %}
+{% block page_title %}KI-Statistiken{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{% url 'ai:dashboard' %}" class="text-muted">
+            <i class="ti ti-arrow-left"></i> Zurück
+        </a>
+    </div>
+    <div class="btn-group">
+        <a href="?days=7" class="btn btn-sm {% if days == 7 %}btn-primary{% else %}btn-outline-secondary{% endif %}">7 Tage</a>
+        <a href="?days=30" class="btn btn-sm {% if days == 30 %}btn-primary{% else %}btn-outline-secondary{% endif %}">30 Tage</a>
+        <a href="?days=90" class="btn btn-sm {% if days == 90 %}btn-primary{% else %}btn-outline-secondary{% endif %}">90 Tage</a>
+    </div>
+</div>
+
+<!-- KPI Grid -->
+<div class="kpi-grid mb-4">
+    <div class="kpi-card">
+        <div class="kpi-label">Total Jobs</div>
+        <div class="kpi-value">{{ totals.total_jobs|default:0 }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Input Tokens</div>
+        <div class="kpi-value">{{ totals.total_input|floatformat:0|default:"0" }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Output Tokens</div>
+        <div class="kpi-value">{{ totals.total_output|floatformat:0|default:"0" }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Total Cost</div>
+        <div class="kpi-value">${{ totals.total_cost|floatformat:2|default:"0.00" }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Ø Dauer</div>
+        <div class="kpi-value">
+            {% if totals.avg_duration %}
+                {{ totals.avg_duration|floatformat:0 }}ms
+            {% else %}
+                0ms
+            {% endif %}
+        </div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Cache Hit Rate</div>
+        <div class="kpi-value">{{ cache_rate|floatformat:1 }}%</div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <!-- Top Instanzen -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Top Instanzen ({{ days }} Tage)</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Instance</th>
+                            <th class="text-end">Jobs</th>
+                            <th class="text-end">Tokens</th>
+                            <th class="text-end">Kosten</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_instances %}
+                        <tr>
+                            <td>{{ item.instance__fqdn|default:"Unbekannt" }}</td>
+                            <td class="text-end">{{ item.jobs }}</td>
+                            <td class="text-end">{{ item.tokens|floatformat:0 }}</td>
+                            <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                Keine Daten vorhanden
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Agenten -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Top Agenten ({{ days }} Tage)</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th class="text-end">Jobs</th>
+                            <th class="text-end">Tokens</th>
+                            <th class="text-end">Cache Hits</th>
+                            <th class="text-end">Kosten</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in top_agents %}
+                        <tr>
+                            <td>{{ item.agent }}</td>
+                            <td class="text-end">{{ item.jobs }}</td>
+                            <td class="text-end">{{ item.tokens|floatformat:0 }}</td>
+                            <td class="text-end">{{ item.cache_hits }}</td>
+                            <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                Keine Daten vorhanden
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Kosten pro Provider -->
+<div class="table-card mb-4">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Kosten pro Provider ({{ days }} Tage)</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Provider</th>
+                    <th>Typ</th>
+                    <th class="text-end">Jobs</th>
+                    <th class="text-end">Tokens</th>
+                    <th class="text-end">Kosten</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in per_provider %}
+                <tr>
+                    <td>{{ item.provider__name|default:"Unbekannt" }}</td>
+                    <td>{{ item.provider__provider_type|default:"-" }}</td>
+                    <td class="text-end">{{ item.jobs }}</td>
+                    <td class="text-end">{{ item.tokens|floatformat:0 }}</td>
+                    <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        Keine Daten vorhanden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Tagesweise Entwicklung -->
+{% if daily %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="mb-0">Tagesweise Entwicklung</h3>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th class="text-end">Jobs</th>
+                        <th class="text-end">Tokens</th>
+                        <th class="text-end">Kosten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in daily %}
+                    <tr>
+                        <td>{{ item.date|date:"d.m.Y" }}</td>
+                        <td class="text-end">{{ item.jobs }}</td>
+                        <td class="text-end">{{ item.tokens|floatformat:0 }}</td>
+                        <td class="text-end">${{ item.cost|floatformat:2 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

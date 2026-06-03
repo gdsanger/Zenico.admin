@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{% if is_create %}Agent anlegen{% else %}Agent bearbeiten{% endif %} - zenico.admin{% endblock %}
+{% block page_title %}{% if is_create %}Agent anlegen{% else %}Agent bearbeiten{% endif %}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'ai:agent-list' %}" class="text-muted">
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-10">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-4">
+                        <label for="id_name" class="form-label">Name *</label>
+                        <input
+                            type="text"
+                            name="name"
+                            id="id_name"
+                            class="form-control {% if errors.name %}is-invalid{% endif %}"
+                            value="{{ agent.name|default:form_data.name|default:'' }}"
+                            {% if not is_create %}readonly{% endif %}
+                            required
+                        >
+                        {% if errors.name %}
+                        <div class="invalid-feedback">{{ errors.name }}</div>
+                        {% endif %}
+                        {% if not is_create %}
+                        <div class="form-text">Name kann nach Erstellung nicht geändert werden</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_description" class="form-label">Beschreibung</label>
+                        <input
+                            type="text"
+                            name="description"
+                            id="id_description"
+                            class="form-control"
+                            value="{{ agent.description|default:form_data.description|default:'' }}"
+                        >
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="id_provider_id" class="form-label">Provider *</label>
+                            <select
+                                name="provider_id"
+                                id="id_provider_id"
+                                class="form-select {% if errors.provider_id %}is-invalid{% endif %}"
+                                required
+                                hx-get="{% url 'ai:models-for-provider' %}"
+                                hx-target="#model-select-container"
+                                hx-include="[name='provider_id']"
+                            >
+                                <option value="">Bitte wählen...</option>
+                                {% for provider in providers %}
+                                <option value="{{ provider.pk }}" {% if agent.provider_id == provider.pk or form_data.provider_id == provider.pk|stringformat:"s" %}selected{% endif %}>
+                                    {{ provider.name }} ({{ provider.provider_type }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if errors.provider_id %}
+                            <div class="invalid-feedback">{{ errors.provider_id }}</div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_model_id" class="form-label">Modell *</label>
+                            <div id="model-select-container">
+                                <select
+                                    name="model_id"
+                                    id="id_model_id"
+                                    class="form-select {% if errors.model_id %}is-invalid{% endif %}"
+                                    required
+                                >
+                                    <option value="">Erst Provider wählen...</option>
+                                    {% if agent.model %}
+                                    <option value="{{ agent.model.pk }}" selected>{{ agent.model.name }}</option>
+                                    {% endif %}
+                                </select>
+                            </div>
+                            {% if errors.model_id %}
+                            <div class="invalid-feedback">{{ errors.model_id }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_role" class="form-label">System Prompt (Role) *</label>
+                        <textarea
+                            name="role"
+                            id="id_role"
+                            rows="4"
+                            class="form-control {% if errors.role %}is-invalid{% endif %}"
+                            required
+                        >{{ agent.role|default:form_data.role|default:'' }}</textarea>
+                        {% if errors.role %}
+                        <div class="invalid-feedback">{{ errors.role }}</div>
+                        {% endif %}
+                        <div class="form-text">Rolle und Kontext des Agenten</div>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_task" class="form-label">Task Prompt *</label>
+                        <textarea
+                            name="task"
+                            id="id_task"
+                            rows="4"
+                            class="form-control {% if errors.task %}is-invalid{% endif %}"
+                            required
+                        >{{ agent.task|default:form_data.task|default:'' }}</textarea>
+                        {% if errors.task %}
+                        <div class="invalid-feedback">{{ errors.task }}</div>
+                        {% endif %}
+                        <div class="form-text">Aufgabenbeschreibung für den Agenten</div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="id_max_tokens" class="form-label">Max Tokens</label>
+                            <input
+                                type="number"
+                                name="max_tokens"
+                                id="id_max_tokens"
+                                class="form-control"
+                                value="{{ agent.max_tokens|default:form_data.max_tokens|default:'1000' }}"
+                                min="1"
+                                max="100000"
+                            >
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_temperature" class="form-label">Temperature</label>
+                            <input
+                                type="number"
+                                name="temperature"
+                                id="id_temperature"
+                                class="form-control"
+                                value="{{ agent.temperature|default:form_data.temperature|default:'0.7' }}"
+                                min="0"
+                                max="2"
+                                step="0.1"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input
+                                type="checkbox"
+                                name="cache_enabled"
+                                id="id_cache_enabled"
+                                class="form-check-input"
+                                {% if agent.cache_enabled or is_create and not form_data %}checked{% endif %}
+                            >
+                            <label class="form-check-label" for="id_cache_enabled">
+                                Cache aktiviert
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label for="id_cache_ttl_seconds" class="form-label">Cache TTL (Sekunden)</label>
+                            <input
+                                type="number"
+                                name="cache_ttl_seconds"
+                                id="id_cache_ttl_seconds"
+                                class="form-control"
+                                value="{{ agent.cache_ttl_seconds|default:form_data.cache_ttl_seconds|default:'300' }}"
+                                min="0"
+                            >
+                        </div>
+                        <div class="col-md-6">
+                            <label for="id_cache_version" class="form-label">Cache Version</label>
+                            <input
+                                type="number"
+                                name="cache_version"
+                                id="id_cache_version"
+                                class="form-control"
+                                value="{{ agent.cache_version|default:form_data.cache_version|default:'1' }}"
+                                min="1"
+                            >
+                            <div class="form-text">Erhöhen um Cache zu invalidieren</div>
+                        </div>
+                    </div>
+
+                    {% if not is_create %}
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input
+                                type="checkbox"
+                                name="active"
+                                id="id_active"
+                                class="form-check-input"
+                                {% if agent.active %}checked{% endif %}
+                            >
+                            <label class="form-check-label" for="id_active">
+                                Aktiv
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Test Section -->
+                    <hr class="my-4">
+                    <h5 class="mb-3">Agent testen</h5>
+                    <div class="mb-3">
+                        <label for="test_input" class="form-label">Test-Input</label>
+                        <textarea
+                            name="test_input"
+                            id="test_input"
+                            rows="3"
+                            class="form-control"
+                            placeholder="Gib einen Test-Input ein..."
+                        ></textarea>
+                    </div>
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary mb-4"
+                        hx-post="{% url 'ai:agent-test' pk=agent.pk %}"
+                        hx-include="[name='test_input']"
+                        hx-target="#test-result"
+                    >
+                        <i class="ti ti-play"></i> Agent testen
+                    </button>
+                    <div id="test-result"></div>
+                    <hr class="my-4">
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'ai:agent-list' %}" class="btn btn-secondary">
+                            Abbrechen
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check"></i> Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if agent.provider_id %}
+<script>
+// Trigger model load on page load for edit form
+document.addEventListener('DOMContentLoaded', function() {
+    const providerSelect = document.getElementById('id_provider_id');
+    if (providerSelect && providerSelect.value) {
+        htmx.trigger(providerSelect, 'change');
+    }
+});
+</script>
+{% endif %}
+{% endblock %}

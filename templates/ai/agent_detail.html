@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ agent.name }} - zenico.admin{% endblock %}
+{% block page_title %}Agent: {{ agent.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'ai:agent-list' %}" class="text-muted">
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+    </a>
+</div>
+
+<!-- Agent Info Card -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h3>{{ agent.name }}</h3>
+                        <div class="text-muted mb-2">
+                            {% if agent.active %}
+                                <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                            {% if agent.cache_enabled %}
+                                <span class="badge bg-info">Cache: {{ agent.cache_ttl_seconds }}s</span>
+                            {% endif %}
+                        </div>
+                        {% if agent.description %}
+                        <p class="text-muted">{{ agent.description }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="btn-group">
+                        <a href="{% url 'ai:agent-edit' pk=agent.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-edit"></i> Bearbeiten
+                        </a>
+                        <button
+                            class="btn btn-sm btn-outline-danger"
+                            hx-post="{% url 'ai:agent-delete' pk=agent.pk %}"
+                            hx-confirm="Agent '{{ agent.name }}' wirklich löschen?"
+                        >
+                            <i class="ti ti-trash"></i> Löschen
+                        </button>
+                    </div>
+                </div>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Provider</dt>
+                    <dd class="col-sm-9">
+                        {% if agent.provider %}
+                            <a href="{% url 'ai:provider-detail' pk=agent.provider.pk %}">{{ agent.provider.name }}</a>
+                        {% else %}
+                            <span class="text-muted">Nicht konfiguriert</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-3">Modell</dt>
+                    <dd class="col-sm-9">
+                        {% if agent.model %}
+                            {{ agent.model.name }} (<code>{{ agent.model.model_id }}</code>)
+                        {% else %}
+                            <span class="text-muted">Nicht konfiguriert</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-3">Max Tokens</dt>
+                    <dd class="col-sm-9">{{ agent.max_tokens }}</dd>
+
+                    <dt class="col-sm-3">Temperature</dt>
+                    <dd class="col-sm-9">{{ agent.temperature }}</dd>
+
+                    <dt class="col-sm-3">Cache Version</dt>
+                    <dd class="col-sm-9">{{ agent.cache_version }}</dd>
+
+                    <dt class="col-sm-3">Erstellt</dt>
+                    <dd class="col-sm-9">{{ agent.created_at|date:"d.m.Y H:i" }}</dd>
+
+                    <dt class="col-sm-3">Aktualisiert</dt>
+                    <dd class="col-sm-9">{{ agent.updated_at|date:"d.m.Y H:i" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Prompts -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">System Prompt (Role)</h5>
+            </div>
+            <div class="card-body">
+                <pre style="white-space: pre-wrap; font-size: 13px; line-height: 1.6;">{{ agent.role }}</pre>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Task Prompt</h5>
+            </div>
+            <div class="card-body">
+                <pre style="white-space: pre-wrap; font-size: 13px; line-height: 1.6;">{{ agent.task }}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Jobs -->
+<div class="table-card">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Letzte Jobs</h3>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Instance</th>
+                    <th class="text-end">Input Tokens</th>
+                    <th class="text-end">Output Tokens</th>
+                    <th class="text-end">Kosten</th>
+                    <th class="text-end">Dauer</th>
+                    <th>Zeitpunkt</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in recent_jobs %}
+                <tr>
+                    <td>
+                        {% if job.status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif job.status == 'Cached' %}
+                            <span class="badge bg-info">Cached</span>
+                        {% elif job.status == 'Error' %}
+                            <span class="badge bg-danger">Error</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ job.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if job.instance %}
+                            <a href="{% url 'ui:instance_detail' pk=job.instance.pk %}">{{ job.instance.fqdn }}</a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">{{ job.input_tokens|default:"-" }}</td>
+                    <td class="text-end">{{ job.output_tokens|default:"-" }}</td>
+                    <td class="text-end">
+                        {% if job.costs %}
+                            ${{ job.costs|floatformat:4 }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if job.duration_ms %}
+                            {{ job.duration_ms }}ms
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ job.timestamp|timesince_short }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">
+                        Noch keine Jobs für diesen Agent ausgeführt
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

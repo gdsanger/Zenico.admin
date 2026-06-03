@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{% if is_create %}Provider anlegen{% else %}Provider bearbeiten{% endif %} - zenico.admin{% endblock %}
+{% block page_title %}{% if is_create %}Provider anlegen{% else %}Provider bearbeiten{% endif %}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'ai:provider-list' %}" class="text-muted">
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label for="id_name" class="form-label">Name *</label>
+                        <input
+                            type="text"
+                            name="name"
+                            id="id_name"
+                            class="form-control {% if errors.name %}is-invalid{% endif %}"
+                            value="{{ provider.name|default:form_data.name|default:'' }}"
+                            required
+                        >
+                        {% if errors.name %}
+                        <div class="invalid-feedback">{{ errors.name }}</div>
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_provider_type" class="form-label">Provider-Typ *</label>
+                        <select
+                            name="provider_type"
+                            id="id_provider_type"
+                            class="form-select {% if errors.provider_type %}is-invalid{% endif %}"
+                            required
+                            {% if not is_create %}disabled{% endif %}
+                        >
+                            <option value="">Bitte wählen...</option>
+                            {% for value, label in provider_types %}
+                            <option value="{{ value }}" {% if provider.provider_type == value or form_data.provider_type == value %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        {% if errors.provider_type %}
+                        <div class="invalid-feedback">{{ errors.provider_type }}</div>
+                        {% endif %}
+                        {% if not is_create %}
+                        <input type="hidden" name="provider_type" value="{{ provider.provider_type }}">
+                        {% endif %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_api_key" class="form-label">API-Key {% if is_create %}*{% else %}(leer lassen, um nicht zu ändern){% endif %}</label>
+                        <input
+                            type="text"
+                            name="api_key"
+                            id="id_api_key"
+                            class="form-control {% if errors.api_key %}is-invalid{% endif %}"
+                            placeholder="{% if not is_create %}••••••••{% endif %}"
+                            {% if is_create %}required{% endif %}
+                        >
+                        {% if errors.api_key %}
+                        <div class="invalid-feedback">{{ errors.api_key }}</div>
+                        {% endif %}
+                        <div class="form-text">
+                            API-Key wird verschlüsselt gespeichert
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="id_organization_id" class="form-label">Organisation ID</label>
+                        <input
+                            type="text"
+                            name="organization_id"
+                            id="id_organization_id"
+                            class="form-control"
+                            value="{{ provider.organization_id|default:form_data.organization_id|default:'' }}"
+                        >
+                        <div class="form-text">
+                            Optional, nur für OpenAI
+                        </div>
+                    </div>
+
+                    {% if not is_create %}
+                    <div class="mb-3 form-check">
+                        <input
+                            type="checkbox"
+                            name="active"
+                            id="id_active"
+                            class="form-check-input"
+                            {% if provider.active %}checked{% endif %}
+                        >
+                        <label class="form-check-label" for="id_active">
+                            Aktiv
+                        </label>
+                    </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'ai:provider-list' %}" class="btn btn-secondary">
+                            Abbrechen
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check"></i> Speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

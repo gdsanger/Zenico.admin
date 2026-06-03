@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}Job History - zenico.admin{% endblock %}
+{% block page_title %}Job History{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'ai:dashboard' %}" class="text-muted">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="filter_instance" class="form-label">Instance</label>
+                <select name="instance" id="filter_instance" class="form-select">
+                    <option value="">Alle</option>
+                    {% for instance in instances %}
+                    <option value="{{ instance.id }}" {% if filters.instance == instance.id|stringformat:"s" %}selected{% endif %}>
+                        {{ instance.fqdn }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filter_agent" class="form-label">Agent</label>
+                <input
+                    type="text"
+                    name="agent"
+                    id="filter_agent"
+                    class="form-control"
+                    value="{{ filters.agent }}"
+                    placeholder="Agent-Name..."
+                >
+            </div>
+            <div class="col-md-3">
+                <label for="filter_status" class="form-label">Status</label>
+                <select name="status" id="filter_status" class="form-select">
+                    <option value="">Alle</option>
+                    {% for value, label in statuses %}
+                    <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>
+                        {{ label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filter_provider" class="form-label">Provider</label>
+                <select name="provider" id="filter_provider" class="form-select">
+                    <option value="">Alle</option>
+                    {% for provider in providers %}
+                    <option value="{{ provider.id }}" {% if filters.provider == provider.id|stringformat:"s" %}selected{% endif %}>
+                        {{ provider.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ti ti-filter"></i> Filter anwenden
+                </button>
+                <a href="{% url 'ai:job-list' %}" class="btn btn-secondary">
+                    <i class="ti ti-x"></i> Zurücksetzen
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Jobs Table -->
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Status</th>
+                    <th>Agent</th>
+                    <th>Instance</th>
+                    <th>Provider</th>
+                    <th>Modell</th>
+                    <th class="text-end">Input</th>
+                    <th class="text-end">Output</th>
+                    <th class="text-end">Kosten</th>
+                    <th class="text-end">Dauer</th>
+                    <th>Zeit</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for job in page.object_list %}
+                <tr>
+                    <td>
+                        {% if job.status == 'Completed' %}
+                            <span class="badge bg-success">Completed</span>
+                        {% elif job.status == 'Cached' %}
+                            <span class="badge bg-info">Cached</span>
+                        {% elif job.status == 'Error' %}
+                            <span class="badge bg-danger">Error</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ job.status }}</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ job.agent|truncatewords:3 }}</td>
+                    <td>
+                        {% if job.instance %}
+                            <a href="{% url 'ui:instance_detail' pk=job.instance.pk %}">{{ job.instance.fqdn|truncatechars:20 }}</a>
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ job.provider.name|default:"-" }}</td>
+                    <td>{{ job.model.name|default:"-"|truncatewords:3 }}</td>
+                    <td class="text-end">{{ job.input_tokens|default:"-" }}</td>
+                    <td class="text-end">{{ job.output_tokens|default:"-" }}</td>
+                    <td class="text-end">
+                        {% if job.costs %}
+                            ${{ job.costs|floatformat:4 }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if job.duration_ms %}
+                            {{ job.duration_ms }}ms
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ job.timestamp|timesince_short }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">
+                        Keine Jobs gefunden
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page.has_other_pages %}
+<nav class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page.previous_page_number }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="ti ti-chevron-left"></i>
+            </a>
+        </li>
+        {% endif %}
+
+        <li class="page-item active">
+            <span class="page-link">{{ page.number }} / {{ page.paginator.num_pages }}</span>
+        </li>
+
+        {% if page.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page.next_page_number }}{% for key, value in filters.items %}{% if value %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                <i class="ti ti-chevron-right"></i>
+            </a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
