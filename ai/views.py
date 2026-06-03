@@ -460,7 +460,7 @@ class AIJobListView(View):
         return render(request, 'ai/job_list.html', {
             'page': page,
             'providers': AIProvider.objects.all(),
-            'instances': Instance.objects.all().order_by('fqdn'),
+            'instances': Instance.objects.all().order_by('slug'),
             'statuses': AIJobStatus.choices,
             'filters': {
                 'instance': request.GET.get('instance', ''),
@@ -493,7 +493,7 @@ class AIStatsView(View):
 
         # Top Instanzen
         top_instances = jobs.values(
-            'instance__fqdn'
+            'instance__id', 'instance__slug', 'instance__customer__slug', 'instance__is_master'
         ).annotate(
             jobs=Count('id'),
             tokens=Sum('input_tokens') + Sum('output_tokens'),
