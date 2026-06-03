@@ -227,11 +227,44 @@ class AIAgent(models.Model):
     )
     active = models.BooleanField(default=True, verbose_name='active')
 
+    # Display fields for Zenico.app
+    context_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('task',       'Task'),
+            ('project',    'Projekt'),
+            ('attachment', 'Anhang'),
+        ],
+        default='task',
+        help_text='Wo wird dieser Agent in Zenico.app angezeigt?'
+    )
+    display_name = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text='Kundenfreundlicher Button-Name (z.B. "Beschreibung verbessern"). '
+                  'Leer = technischer Name wird verwendet.'
+    )
+    display_description = models.CharField(
+        max_length=255,
+        blank=True,
+        help_text='Kurze Beschreibung was der Agent macht (1 Satz, Tooltip in App)'
+    )
+    button_icon = models.CharField(
+        max_length=50,
+        default='bi-stars',
+        help_text='Bootstrap Icon Klasse (z.B. "bi-magic"). '
+                  'Referenz: https://icons.getbootstrap.com'
+    )
+    sort_order = models.IntegerField(
+        default=0,
+        help_text='Reihenfolge der Buttons in der App (aufsteigend, z.B. 10/20/30)'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='created at')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='updated at')
 
     class Meta:
-        ordering = ['name']
+        ordering = ['context_type', 'sort_order', 'name']
         verbose_name = 'AI Agent'
         verbose_name_plural = 'AI Agents'
 

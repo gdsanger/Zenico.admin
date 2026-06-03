@@ -206,7 +206,93 @@
                             </label>
                         </div>
                     </div>
+                    {% endif %}
 
+                    <!-- Display Settings -->
+                    <hr class="my-4">
+                    <h6 class="mb-3 text-muted" style="font-size:11px; text-transform:uppercase; letter-spacing:.5px;">
+                        Darstellung in Zenico.app
+                    </h6>
+
+                    <!-- Kontext -->
+                    <div class="mb-3">
+                        <label class="form-label">Kontext *</label>
+                        <select name="context_type" class="form-select" required>
+                            <option value="task"
+                                {% if agent.context_type == 'task' or not agent %}selected{% endif %}>
+                                Task — erscheint im Task-Detail
+                            </option>
+                            <option value="project"
+                                {% if agent.context_type == 'project' %}selected{% endif %}>
+                                Projekt — erscheint im Projekt-Detail
+                            </option>
+                            <option value="attachment"
+                                {% if agent.context_type == 'attachment' %}selected{% endif %}>
+                                Anhang — erscheint bei Dateianhängen
+                            </option>
+                        </select>
+                    </div>
+
+                    <!-- Display Name -->
+                    <div class="mb-3">
+                        <label class="form-label">Anzeige-Name</label>
+                        <input type="text" name="display_name" class="form-control"
+                               value="{{ agent.display_name|default:form_data.display_name|default:'' }}"
+                               placeholder="z.B. Beschreibung verbessern">
+                        <div class="form-text">
+                            Erscheint als Button-Label in Zenico.app.
+                            Leer = technischer Name wird verwendet.
+                        </div>
+                    </div>
+
+                    <!-- Display Description -->
+                    <div class="mb-3">
+                        <label class="form-label">Anzeige-Beschreibung</label>
+                        <input type="text" name="display_description" class="form-control"
+                               value="{{ agent.display_description|default:form_data.display_description|default:'' }}"
+                               placeholder="z.B. Verbessert Formulierung, Rechtschreibung und Grammatik">
+                        <div class="form-text">
+                            Kurze Beschreibung (1 Satz) — erscheint als Tooltip in Zenico.app.
+                        </div>
+                    </div>
+
+                    <!-- Icon + Sort Order -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Button Icon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">
+                                        <i id="icon-preview" class="{{ agent.button_icon|default:'bi-stars' }}"></i>
+                                    </span>
+                                    <input type="text" name="button_icon" class="form-control"
+                                           id="button-icon-input"
+                                           value="{{ agent.button_icon|default:form_data.button_icon|default:'bi-stars' }}"
+                                           placeholder="bi-magic"
+                                           oninput="document.getElementById('icon-preview').className = this.value">
+                                </div>
+                                <div class="form-text">
+                                    Bootstrap Icon Klasse.
+                                    <a href="https://icons.getbootstrap.com" target="_blank">
+                                        Alle Icons →
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Reihenfolge</label>
+                                <input type="number" name="sort_order" class="form-control"
+                                       value="{{ agent.sort_order|default:form_data.sort_order|default:0 }}"
+                                       min="0" step="10">
+                                <div class="form-text">
+                                    Niedrigere Zahl = weiter vorne (Empfehlung: 10, 20, 30...)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if not is_create %}
                     <!-- Test Section -->
                     <hr class="my-4">
                     <h5 class="mb-3">Agent testen</h5>

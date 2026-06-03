@@ -264,6 +264,11 @@ class AIAgentCreateView(View):
                 'temperature': '0.7',
                 'cache_ttl_seconds': '300',
                 'cache_version': '1',
+                'context_type': 'task',
+                'display_name': '',
+                'display_description': '',
+                'button_icon': 'bi-stars',
+                'sort_order': '0',
             },
         })
 
@@ -292,6 +297,11 @@ class AIAgentCreateView(View):
             cache_version=int(request.POST.get('cache_version', 1)),
             max_tokens=int(request.POST.get('max_tokens', 1000)),
             temperature=float(request.POST.get('temperature', 0.7)),
+            context_type=request.POST.get('context_type', 'task'),
+            display_name=request.POST.get('display_name', '').strip(),
+            display_description=request.POST.get('display_description', '').strip(),
+            button_icon=request.POST.get('button_icon', 'bi-stars').strip(),
+            sort_order=int(request.POST.get('sort_order', 0)),
         )
         messages.success(request, f'Agent "{agent.name}" angelegt.')
         return redirect('ai:agent-detail', pk=agent.pk)
@@ -335,6 +345,11 @@ class AIAgentEditView(View):
                 'temperature': '0.7',
                 'cache_ttl_seconds': '300',
                 'cache_version': '1',
+                'context_type': 'task',
+                'display_name': '',
+                'display_description': '',
+                'button_icon': 'bi-stars',
+                'sort_order': '0',
             },
         })
 
@@ -369,6 +384,11 @@ class AIAgentEditView(View):
         agent.max_tokens = int(request.POST.get('max_tokens', 1000))
         agent.temperature = float(request.POST.get('temperature', 0.7))
         agent.active = ('active' in request.POST)
+        agent.context_type = request.POST.get('context_type', 'task')
+        agent.display_name = request.POST.get('display_name', '').strip()
+        agent.display_description = request.POST.get('display_description', '').strip()
+        agent.button_icon = request.POST.get('button_icon', 'bi-stars').strip()
+        agent.sort_order = int(request.POST.get('sort_order', 0))
         agent.save()
 
         messages.success(request, f'Agent "{agent.name}" gespeichert.')
