@@ -72,7 +72,13 @@
                     <tbody>
                         {% for item in top_instances %}
                         <tr>
-                            <td>{{ item.instance__fqdn|default:"Unbekannt" }}</td>
+                            <td>
+                                {% if item.instance__is_master %}
+                                    {{ item.instance__customer__slug }}.zenico.app
+                                {% else %}
+                                    {{ item.instance__slug }}.{{ item.instance__customer__slug }}.zenico.app
+                                {% endif %}
+                            </td>
                             <td class="text-end">{{ item.jobs }}</td>
                             <td class="text-end">{{ item.tokens|floatformat:0 }}</td>
                             <td class="text-end">${{ item.cost|floatformat:2 }}</td>
