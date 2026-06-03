@@ -1,0 +1,13 @@
+<select
+    name="model_id"
+    id="id_model_id"
+    class="form-select"
+    required
+>
+    <option value="">Bitte wählen...</option>
+    {% for model in models %}
+    <option value="{{ model.pk }}" {% if selected_model == model.pk|stringformat:"s" %}selected{% endif %}>
+        {{ model.name }}
+    </option>
+    {% endfor %}
+</select>

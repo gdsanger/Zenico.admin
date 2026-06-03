@@ -1,0 +1,16 @@
+{% if error %}
+<div class="alert alert-danger" style="font-size:13px;">
+    <i class="ti ti-alert-triangle me-2"></i>{{ error }}
+</div>
+{% else %}
+<div class="p-3 rounded"
+     style="background:#f8f8f6; border:1px solid #e8e8e4;
+            font-size:13px; line-height:1.6; white-space:pre-wrap;">
+    {% if from_cache %}
+    <div class="mb-2" style="font-size:11px; color:var(--z-teal);">
+        <i class="ti ti-lightning-charge me-1"></i>Aus Cache
+    </div>
+    {% endif %}
+    {{ result }}
+</div>
+{% endif %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}KI-Agenten - zenico.admin{% endblock %}
+{% block page_title %}KI-Agenten{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{% url 'ai:dashboard' %}" class="text-muted me-2">
+            <i class="ti ti-arrow-left"></i> Zurück
+        </a>
+    </div>
+    <a href="{% url 'ai:agent-create' %}" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Agent anlegen
+    </a>
+</div>
+
+<div class="table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Provider</th>
+                    <th>Modell</th>
+                    <th class="text-center">Cache</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for agent in agents %}
+                <tr>
+                    <td>
+                        <a href="{% url 'ai:agent-detail' pk=agent.pk %}" class="text-decoration-none">
+                            <strong>{{ agent.name }}</strong>
+                        </a>
+                        {% if agent.description %}
+                        <br><small class="text-muted">{{ agent.description|truncatewords:10 }}</small>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if agent.provider %}
+                            {{ agent.provider.name }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if agent.model %}
+                            {{ agent.model.name }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if agent.cache_enabled %}
+                            <i class="ti ti-check text-success" title="Cache aktiviert ({{ agent.cache_ttl_seconds }}s)"></i>
+                        {% else %}
+                            <i class="ti ti-x text-muted"></i>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if agent.active %}
+                            <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{% url 'ai:agent-detail' pk=agent.pk %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="ti ti-eye"></i> Detail
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Noch keine Agenten angelegt.
+                        <a href="{% url 'ai:agent-create' %}">Ersten Agent erstellen</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

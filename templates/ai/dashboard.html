@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}KI-Administration - zenico.admin{% endblock %}
+{% block page_title %}KI-Administration{% endblock %}
+
+{% block content %}
+<!-- KPI Grid -->
+<div class="kpi-grid mb-4">
+    <div class="kpi-card">
+        <div class="kpi-label">Jobs (7 Tage)</div>
+        <div class="kpi-value">{{ total_jobs|default:0 }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Tokens (7 Tage)</div>
+        <div class="kpi-value">{{ total_tokens|floatformat:0|default:"0" }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Kosten (7 Tage)</div>
+        <div class="kpi-value">${{ total_cost|floatformat:2|default:"0.00" }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Cache Hit Rate</div>
+        <div class="kpi-value">{{ cache_hit_rate|floatformat:1|default:"0.0" }}%</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Aktive Provider</div>
+        <div class="kpi-value">{{ provider_count|default:0 }}</div>
+    </div>
+    <div class="kpi-card">
+        <div class="kpi-label">Aktive Agenten</div>
+        <div class="kpi-value">{{ agent_count|default:0 }}</div>
+    </div>
+</div>
+
+<!-- Quick Links -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="btn-group" role="group">
+            <a href="{% url 'ai:provider-list' %}" class="btn btn-outline-primary">
+                <i class="ti ti-server"></i> Provider verwalten
+            </a>
+            <a href="{% url 'ai:agent-list' %}" class="btn btn-outline-primary">
+                <i class="ti ti-robot"></i> Agenten verwalten
+            </a>
+            <a href="{% url 'ai:job-list' %}" class="btn btn-outline-secondary">
+                <i class="ti ti-history"></i> Job History
+            </a>
+            <a href="{% url 'ai:stats' %}" class="btn btn-outline-secondary">
+                <i class="ti ti-chart-bar"></i> Statistiken
+            </a>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Top Agenten -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Top Agenten (7 Tage)</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Agent</th>
+                            <th class="text-end">Jobs</th>
+                            <th class="text-end">Tokens</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for agent in top_agents %}
+                        <tr>
+                            <td>{{ agent.agent }}</td>
+                            <td class="text-end">{{ agent.count }}</td>
+                            <td class="text-end">{{ agent.tokens|floatformat:0 }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center text-muted py-4">
+                                Noch keine Agenten ausgeführt
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Letzte Jobs -->
+    <div class="col-md-6">
+        <div class="table-card">
+            <div class="table-card-header">
+                <h3 class="table-card-title">Letzte Jobs</h3>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>Agent</th>
+                            <th>Provider</th>
+                            <th>Zeit</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in recent_jobs %}
+                        <tr>
+                            <td>
+                                {% if job.status == 'Completed' %}
+                                    <span class="badge bg-success">Completed</span>
+                                {% elif job.status == 'Cached' %}
+                                    <span class="badge bg-info">Cached</span>
+                                {% elif job.status == 'Error' %}
+                                    <span class="badge bg-danger">Error</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ job.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ job.agent|truncatewords:3 }}</td>
+                            <td>{{ job.provider.name|default:"-" }}</td>
+                            <td>{{ job.timestamp|timesince_short }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">
+                                Noch keine Jobs ausgeführt
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+{% load ui_tags %}
+
+{% block title %}{{ provider.name }} - zenico.admin{% endblock %}
+{% block page_title %}Provider: {{ provider.name }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{% url 'ai:provider-list' %}" class="text-muted">
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+    </a>
+</div>
+
+<!-- Provider Info Card -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <div>
+                        <h3>{{ provider.name }}</h3>
+                        <div class="text-muted">
+                            {% if provider.active %}
+                                <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                            · {{ provider.provider_type }} · {{ models.count }} Modelle
+                        </div>
+                    </div>
+                    <div class="btn-group">
+                        <a href="{% url 'ai:provider-edit' pk=provider.pk %}" class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-edit"></i> Bearbeiten
+                        </a>
+                        <button
+                            class="btn btn-sm btn-outline-danger"
+                            hx-post="{% url 'ai:provider-delete' pk=provider.pk %}"
+                            hx-confirm="Provider '{{ provider.name }}' wirklich löschen? Alle zugehörigen Modelle und Agent-Verknüpfungen werden entfernt."
+                        >
+                            <i class="ti ti-trash"></i> Löschen
+                        </button>
+                    </div>
+                </div>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Provider-Typ</dt>
+                    <dd class="col-sm-9">{{ provider.provider_type }}</dd>
+
+                    {% if provider.organization_id %}
+                    <dt class="col-sm-3">Organisation</dt>
+                    <dd class="col-sm-9">{{ provider.organization_id }}</dd>
+                    {% endif %}
+
+                    <dt class="col-sm-3">Erstellt</dt>
+                    <dd class="col-sm-9">{{ provider.created_at|date:"d.m.Y H:i" }}</dd>
+
+                    <dt class="col-sm-3">Aktualisiert</dt>
+                    <dd class="col-sm-9">{{ provider.updated_at|date:"d.m.Y H:i" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Models Section -->
+<div class="table-card">
+    <div class="table-card-header">
+        <h3 class="table-card-title">Modelle</h3>
+        <form method="post" action="{% url 'ai:fetch-models' pk=provider.pk %}" class="d-inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="ti ti-refresh"></i> Modelle aus API abrufen
+            </button>
+        </form>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Modell</th>
+                    <th>Model ID</th>
+                    <th class="text-end">Input $/1M</th>
+                    <th class="text-end">Output $/1M</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Default</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for model in models %}
+                <tr>
+                    <td>{{ model.name }}</td>
+                    <td><code>{{ model.model_id }}</code></td>
+                    <td class="text-end">
+                        {% if model.input_price_per_1m_tokens %}
+                            ${{ model.input_price_per_1m_tokens }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        {% if model.output_price_per_1m_tokens %}
+                            ${{ model.output_price_per_1m_tokens }}
+                        {% else %}
+                            <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if model.active %}
+                            <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if model.is_default %}
+                            <i class="ti ti-star text-warning"></i>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        Noch keine Modelle angelegt.
+                        <br>
+                        <small>Nutze "Modelle aus API abrufen" um Modelle automatisch zu laden.</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle"></i>
+    <strong>Hinweis:</strong> Preise können in der Django Admin-Oberfläche für jedes Modell gepflegt werden.
+</div>
+{% endblock %}
