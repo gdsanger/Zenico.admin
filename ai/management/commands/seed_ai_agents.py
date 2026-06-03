@@ -158,26 +158,87 @@ class Command(BaseCommand):
                 'max_tokens': 300,
                 'temperature': 0.7,
             },
+            {
+                'name': 'project-status-report',
+                'description': 'Erstellt einen vollständigen Projekt-Status-Report',
+                'context_type': 'project',
+                'display_name': 'Projekt-Status erstellen',
+                'display_description': 'Erstellt einen vollständigen Status-Report mit Stand, Risiken und nächsten Schritten',
+                'button_icon': 'bi-clipboard2-pulse',
+                'sort_order': 10,
+                'role': (
+                    'Du bist ein erfahrener Projektmanager und Kommunikationsexperte. '
+                    'Du erstellst präzise, sachliche Projekt-Status-Reports für das Management. '
+                    'Deine Reports sind klar strukturiert, auf das Wesentliche fokussiert '
+                    'und handlungsorientiert. Du schreibst in der Sprache des übergebenen '
+                    'Projektkontexts (Deutsch oder Englisch).'
+                ),
+                'task': (
+                    'Erstelle einen vollständigen Projekt-Status-Report basierend auf '
+                    'den folgenden Projektdaten.\n\n'
+                    'Der Report muss folgende Abschnitte enthalten:\n\n'
+                    '## Aktueller Stand\n'
+                    'Kurze Zusammenfassung wo das Projekt gerade steht (2-3 Sätze). '
+                    'Fortschritt in Prozent nennen.\n\n'
+                    '## Erledigte Aufgaben\n'
+                    'Kurze Auflistung was bereits abgeschlossen wurde. '
+                    'Maximal 5 wichtigste Punkte.\n\n'
+                    '## Offene Aufgaben\n'
+                    'Was ist noch zu tun? Nächste wichtige Deadlines nennen. '
+                    'Maximal 5 wichtigste Punkte.\n\n'
+                    '## Risiken\n'
+                    'Gibt es Risiken? Überfällige Tasks, kritische Abhängigkeiten, '
+                    'knappe Deadlines? Wenn keine Risiken vorhanden: "Keine kritischen '
+                    'Risiken erkannt." schreiben.\n\n'
+                    '## Nächste Schritte (Management)\n'
+                    'Konkrete Handlungsempfehlungen aus Management-Sicht. '
+                    'Was muss entschieden, freigegeben oder eskaliert werden? '
+                    'Maximal 3 Punkte. Wenn keine Aktion nötig: "Kein Handlungsbedarf."\n\n'
+                    'Regeln:\n'
+                    '- Sachlich und präzise, keine Marketing-Sprache\n'
+                    '- Keine Einleitung oder Schlussformel\n'
+                    '- Nur die 5 Abschnitte, kein weiterer Text\n'
+                    '- Wenn ein Abschnitt leer wäre, trotzdem kurz befüllen'
+                ),
+                'cache_ttl': 300,
+                'max_tokens': 2000,
+                'temperature': 0.4,
+            },
         ]
 
         # Create agents
         created_count = 0
         updated_count = 0
         for agent_data in agents:
+            # Build defaults dict with optional display fields
+            defaults = {
+                'description': agent_data['description'],
+                'provider': provider,
+                'model': model,
+                'role': agent_data['role'],
+                'task': agent_data['task'],
+                'cache_ttl_seconds': agent_data['cache_ttl'],
+                'max_tokens': agent_data['max_tokens'],
+                'temperature': agent_data['temperature'],
+                'cache_enabled': True,
+                'active': True,
+            }
+
+            # Add optional display fields if present
+            if 'context_type' in agent_data:
+                defaults['context_type'] = agent_data['context_type']
+            if 'display_name' in agent_data:
+                defaults['display_name'] = agent_data['display_name']
+            if 'display_description' in agent_data:
+                defaults['display_description'] = agent_data['display_description']
+            if 'button_icon' in agent_data:
+                defaults['button_icon'] = agent_data['button_icon']
+            if 'sort_order' in agent_data:
+                defaults['sort_order'] = agent_data['sort_order']
+
             agent, created = AIAgent.objects.update_or_create(
                 name=agent_data['name'],
-                defaults={
-                    'description': agent_data['description'],
-                    'provider': provider,
-                    'model': model,
-                    'role': agent_data['role'],
-                    'task': agent_data['task'],
-                    'cache_ttl_seconds': agent_data['cache_ttl'],
-                    'max_tokens': agent_data['max_tokens'],
-                    'temperature': agent_data['temperature'],
-                    'cache_enabled': True,
-                    'active': True,
-                }
+                defaults=defaults
             )
 
             if created:
