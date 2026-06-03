@@ -170,6 +170,5 @@ urlpatterns = [
     path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/edit/', automation_step_edit, name='automation_step_edit'),
     path('newsletter/automations/<uuid:sequence_id>/steps/<uuid:step_id>/delete/', automation_step_delete, name='automation_step_delete'),
 
-    # AI Administration
-    path('ai/', include('ai.urls')),
+ 
 ]

@@ -21,5 +21,6 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
     path('billing/', include('billing.urls')),
+    path('ai/', include('ai.urls', namespace='ai')),  # ← direkt hier
     path('', include('ui.urls')),
 ]
