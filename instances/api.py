@@ -156,6 +156,12 @@ class InstanceRegisterView(APIView):
             'ai_tokens_used_this_week': budget.tokens_used_week,
             'ai_tokens_remaining_this_week': budget.tokens_remaining,
             'week_resets_at': week_resets_at.isoformat(),
+            # New subscription API fields
+            'cancelled_at': instance.cancelled_at.isoformat() if instance.cancelled_at else None,
+            'coupon_code': customer.coupon_code or None,
+            'coupon_description': customer.coupon_description or None,
+            'coupon_discount': float(customer.coupon_discount_pct) if customer.coupon_discount_pct else None,
+            'billing_period_end': subscription.current_period_end.isoformat() if subscription and subscription.current_period_end else None,
         }
 
         return Response(response_data, status=status.HTTP_200_OK)

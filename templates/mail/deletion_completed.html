@@ -1,0 +1,31 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Datenlöschung abgeschlossen
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo {{ customer.contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  Ihre Zenico-Instanz <strong>{{ instance.display_name }}</strong> ({{ instance.fqdn }}) wurde heute deaktiviert und alle Daten wurden gelöscht.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Vielen Dank, dass Sie Zenico genutzt haben. Wir würden uns freuen, Sie in Zukunft wieder bei uns begrüßen zu dürfen.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Möchten Sie in Zukunft wieder starten?</strong><br>
+  Besuchen Sie einfach unsere Website unter https://zenico.app und erstellen Sie eine neue Instanz.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Bei Fragen oder Anregungen erreichen Sie uns jederzeit unter: {{ mail_from_address }}
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

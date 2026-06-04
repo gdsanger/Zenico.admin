@@ -1,0 +1,45 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#2E9A9A;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  Kündigung Ihrer Zenico-Subscription
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo {{ customer.contact_name }},</p>
+
+<p style="margin:0 0 15px 0;">
+  wir haben Ihre Kündigung für die Zenico-Instanz <strong>{{ instance.display_name }}</strong> ({{ instance.fqdn }}) erhalten.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Ihre Subscription endet am:</strong> {{ cancelled_at|date:"d.m.Y" }}
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Bis zu diesem Datum können Sie Zenico weiterhin vollumfänglich nutzen. Danach wird Ihre Instanz in den Read-Only-Modus versetzt.
+</p>
+
+<h2 style="color:#333;font-size:18px;margin:20px 0 10px 0;font-family:Arial,Helvetica,sans-serif;">
+  Was passiert nach der Kündigung?
+</h2>
+
+<ul style="margin:0 0 15px 0;padding-left:20px;">
+  <li style="margin:0 0 8px 0;"><strong>Tag der Kündigung ({{ cancelled_at|date:"d.m.Y" }})</strong>: Ihre Instanz wird in den Read-Only-Modus versetzt. Sie können Ihre Daten einsehen, aber keine Änderungen mehr vornehmen.</li>
+  <li style="margin:0 0 8px 0;"><strong>75 Tage nach Kündigung</strong>: Sie erhalten eine Erinnerung, dass Ihre Daten in 15 Tagen gelöscht werden.</li>
+  <li style="margin:0 0 8px 0;"><strong>90 Tage nach Kündigung</strong>: Ihre Daten werden vollständig gelöscht.</li>
+</ul>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Möchten Sie Ihre Daten behalten?</strong><br>
+  Falls Sie Ihre Subscription doch nicht kündigen möchten, kontaktieren Sie uns bitte innerhalb von 90 Tagen unter: {{ mail_from_address }}
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Wir bedauern Ihre Kündigung und würden uns freuen, Sie in Zukunft wieder bei Zenico begrüßen zu dürfen.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

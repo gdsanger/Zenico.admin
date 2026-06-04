@@ -162,6 +162,27 @@ class Customer(models.Model):
         default='active',
         verbose_name='status'
     )
+    # Coupon information (synced from Stripe)
+    coupon_code = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='coupon code',
+        help_text='Applied coupon code'
+    )
+    coupon_description = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='coupon description',
+        help_text='Human-readable coupon description'
+    )
+    coupon_discount_pct = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='coupon discount %',
+        help_text='Discount percentage (if applicable)'
+    )
     notes = models.TextField(
         blank=True,
         verbose_name='internal notes',
