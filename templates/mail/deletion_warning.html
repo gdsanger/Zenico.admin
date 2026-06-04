@@ -1,0 +1,49 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#D9534F;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  ⚠️ Datenlöschung in 15 Tagen
+</h1>
+
+<p style="margin:0 0 15px 0;">Hallo {{ customer.contact_name }},</p>
+
+<p style="margin:0 0 15px 0;background:#FFF3CD;border-left:4px solid #FFC107;padding:12px;">
+  <strong>Wichtiger Hinweis:</strong> Ihre Zenico-Daten werden in <strong>{{ days_remaining }} Tagen</strong> unwiderruflich gelöscht.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Ihre Instanz <strong>{{ instance.display_name }}</strong> ({{ instance.fqdn }}) befindet sich seit 75 Tagen im Read-Only-Modus.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Endgültige Löschung am:</strong> {{ deletion_date|date:"d.m.Y" }}
+</p>
+
+<h2 style="color:#333;font-size:18px;margin:20px 0 10px 0;font-family:Arial,Helvetica,sans-serif;">
+  Was können Sie tun?
+</h2>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Option 1: Subscription reaktivieren</strong><br>
+  Kontaktieren Sie uns unter {{ mail_from_address }} um Ihre Subscription zu reaktivieren und Ihre Daten zu behalten.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Option 2: Daten exportieren</strong><br>
+  Falls Sie Ihre Daten exportieren möchten, kontaktieren Sie uns bitte umgehend. Wir helfen Ihnen gerne beim Export.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Option 3: Nichts tun</strong><br>
+  Ihre Daten werden am {{ deletion_date|date:"d.m.Y" }} automatisch gelöscht.
+</p>
+
+<p style="margin:0 0 15px 0;color:#D9534F;">
+  <strong>Hinweis:</strong> Nach der Löschung können Ihre Daten nicht mehr wiederhergestellt werden.
+</p>
+
+<p style="margin:0 0 15px 0;">
+  Mit freundlichen Grüßen<br>
+  Ihr {{ mail_from_name }}-Team
+</p>
+{% endblock %}

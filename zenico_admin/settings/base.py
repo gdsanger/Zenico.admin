@@ -212,6 +212,10 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'instances.tasks.cleanup_old_heartbeats',
         'schedule': crontab(hour=2, minute=0),  # Daily at 2:00 AM
     },
+    'process-cancellations': {
+        'task': 'instances.tasks.process_cancellations',
+        'schedule': crontab(hour=6, minute=0),  # Daily at 6:00 AM
+    },
 }
 
 

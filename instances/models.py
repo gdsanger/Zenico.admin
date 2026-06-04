@@ -166,6 +166,30 @@ class Instance(models.Model):
         verbose_name='last heartbeat',
         help_text='Timestamp of the last phone-home call'
     )
+    # Cancellation fields
+    cancelled_at = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='cancelled at',
+        help_text='Date when the instance subscription ends (cancellation effective date)'
+    )
+    cancelled_reason = models.CharField(
+        max_length=50,
+        blank=True,
+        verbose_name='cancellation reason',
+        help_text='Reason category: missing_feature, too_expensive, not_needed, switching, other'
+    )
+    cancelled_reason_text = models.TextField(
+        blank=True,
+        verbose_name='cancellation reason text',
+        help_text='Free text explanation for cancellation'
+    )
+    cancelled_missing_feature = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='missing feature',
+        help_text='Specific feature that was missing (if reason=missing_feature)'
+    )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='created at')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='updated at')
 
