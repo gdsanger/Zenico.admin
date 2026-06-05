@@ -146,6 +146,9 @@ class InstanceRegisterView(APIView):
             next_monday,
             timezone.datetime.min.time()
         ).replace(tzinfo=dt_timezone.utc)
+        customer = instance.customer
+        active_sub = customer.active_subscription
+        coupon = active_sub.coupon if active_sub else None
 
         response_data = {
             'plan': plan.name if plan else 'unknown',
@@ -156,11 +159,10 @@ class InstanceRegisterView(APIView):
             'ai_tokens_used_this_week': budget.tokens_used_week,
             'ai_tokens_remaining_this_week': budget.tokens_remaining,
             'week_resets_at': week_resets_at.isoformat(),
-            # New subscription API fields
-            'cancelled_at': instance.cancelled_at.isoformat() if instance.cancelled_at else None,
-            'coupon_code': customer.coupon_code or None,
-            'coupon_description': customer.coupon_description or None,
-            'coupon_discount': float(customer.coupon_discount_pct) if customer.coupon_discount_pct else None,
+            'cancelled_at': instance.cancelled_at.isoformat() if hasattr(instance, 'cancelled_at') and instance.cancelled_at else None,
+            'coupon_code': coupon.code if coupon else None,
+            'coupon_description': coupon.name if coupon else None,
+            'coupon_discount': float(coupon.discount_percent) if coupon and coupon.discount_percent else None,
             'billing_period_end': subscription.current_period_end.isoformat() if subscription and subscription.current_period_end else None,
         }
 
