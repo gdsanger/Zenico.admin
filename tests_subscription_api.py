@@ -11,7 +11,13 @@ from rest_framework.test import APIClient
 
 from instances.models import Instance, UserLicense
 from customers.models import Customer, Plan, Subscription
-from instances.subscription_api import _get_price_per_seat, _count_active_users
+from instances.subscription_api import (
+    _build_schedule_phases_for_seat_reduction,
+    _count_active_users,
+    _get_price_per_seat,
+    _get_subscription_schedule_id,
+    _schedule_seat_reduction,
+)
 
 
 class SubscriptionAPITestCase(TestCase):
@@ -166,6 +172,184 @@ class SubscriptionAPITestCase(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertIn('error', response.json())
+
+    def test_get_subscription_schedule_id(self):
+        """Test extracting schedule ID from Stripe subscription payloads."""
+        self.assertIsNone(_get_subscription_schedule_id({'schedule': None}))
+        self.assertEqual(
+            _get_subscription_schedule_id({'schedule': 'sub_sched_test'}),
+            'sub_sched_test',
+        )
+        self.assertEqual(
+            _get_subscription_schedule_id({'schedule': {'id': 'sub_sched_test'}}),
+            'sub_sched_test',
+        )
+
+    def test_build_schedule_phases_for_seat_reduction_appends_future_phase(self):
+        """Test schedule phase builder adds a future phase when none exists."""
+        period_end = 1_700_000_000
+        stripe_sub = {
+            'current_period_end': period_end,
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': 'User Seats'},
+                        'quantity': 5,
+                    },
+                    {
+                        'price': {'id': 'price_instance', 'nickname': 'Instance Fee'},
+                        'quantity': 1,
+                    },
+                ]
+            },
+        }
+        schedule = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'end_date': period_end,
+                    'items': [
+                        {'price': 'price_user', 'quantity': 5},
+                        {'price': 'price_instance', 'quantity': 1},
+                    ],
+                }
+            ]
+        }
+
+        phases = _build_schedule_phases_for_seat_reduction(
+            schedule=schedule,
+            stripe_sub=stripe_sub,
+            new_seats=3,
+        )
+
+        self.assertEqual(len(phases), 2)
+        self.assertEqual(phases[0]['items'][0]['quantity'], 5)
+        self.assertEqual(phases[1]['start_date'], period_end)
+        self.assertEqual(phases[1]['items'][0]['quantity'], 3)
+        self.assertEqual(phases[1]['items'][1]['quantity'], 1)
+
+    def test_build_schedule_phases_for_seat_reduction_updates_existing_future_phase(self):
+        """Test schedule phase builder updates an existing future phase."""
+        period_end = 1_700_000_000
+        stripe_sub = {
+            'current_period_end': period_end,
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': 'User Seats'},
+                        'quantity': 5,
+                    }
+                ]
+            },
+        }
+        schedule = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'end_date': period_end,
+                    'items': [{'price': 'price_user', 'quantity': 5}],
+                },
+                {
+                    'start_date': period_end,
+                    'items': [{'price': 'price_user', 'quantity': 4}],
+                },
+            ]
+        }
+
+        phases = _build_schedule_phases_for_seat_reduction(
+            schedule=schedule,
+            stripe_sub=stripe_sub,
+            new_seats=3,
+        )
+
+        self.assertEqual(len(phases), 2)
+        self.assertEqual(phases[1]['items'][0]['quantity'], 3)
+
+    @patch('instances.subscription_api.AuditService.log')
+    @patch('instances.subscription_api.get_stripe')
+    def test_schedule_seat_reduction_creates_schedule_when_missing(
+        self, mock_get_stripe, mock_audit_log
+    ):
+        """Test seat reduction creates a schedule when none is attached."""
+        period_end = 1_700_000_000
+        mock_stripe = MagicMock()
+        mock_get_stripe.return_value = mock_stripe
+        mock_stripe.Subscription.retrieve.return_value = {
+            'current_period_end': period_end,
+            'schedule': None,
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': 'User Seats'},
+                        'quantity': 5,
+                    }
+                ]
+            },
+        }
+        mock_stripe.SubscriptionSchedule.create.return_value = MagicMock(id='sub_sched_new')
+        mock_stripe.SubscriptionSchedule.retrieve.return_value = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'items': [{'price': 'price_user', 'quantity': 5}],
+                }
+            ]
+        }
+
+        effective_date = _schedule_seat_reduction(self.instance, new_seats=3)
+
+        mock_stripe.SubscriptionSchedule.create.assert_called_once_with(
+            from_subscription='sub_test123',
+        )
+        mock_stripe.SubscriptionSchedule.modify.assert_called_once()
+        modify_kwargs = mock_stripe.SubscriptionSchedule.modify.call_args.kwargs
+        self.assertEqual(modify_kwargs['phases'][-1]['items'][0]['quantity'], 3)
+        self.assertEqual(effective_date, date.fromtimestamp(period_end))
+        mock_audit_log.assert_called_once()
+
+    @patch('instances.subscription_api.AuditService.log')
+    @patch('instances.subscription_api.get_stripe')
+    def test_schedule_seat_reduction_updates_existing_schedule(
+        self, mock_get_stripe, mock_audit_log
+    ):
+        """Test seat reduction updates an existing schedule instead of creating one."""
+        period_end = 1_700_000_000
+        mock_stripe = MagicMock()
+        mock_get_stripe.return_value = mock_stripe
+        mock_stripe.Subscription.retrieve.return_value = {
+            'current_period_end': period_end,
+            'schedule': 'sub_sched_existing',
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': 'User Seats'},
+                        'quantity': 5,
+                    }
+                ]
+            },
+        }
+        mock_stripe.SubscriptionSchedule.retrieve.return_value = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'end_date': period_end,
+                    'items': [{'price': 'price_user', 'quantity': 5}],
+                },
+                {
+                    'start_date': period_end,
+                    'items': [{'price': 'price_user', 'quantity': 4}],
+                },
+            ]
+        }
+
+        _schedule_seat_reduction(self.instance, new_seats=3)
+
+        mock_stripe.SubscriptionSchedule.create.assert_not_called()
+        mock_stripe.SubscriptionSchedule.retrieve.assert_called_once_with('sub_sched_existing')
+        modify_args, modify_kwargs = mock_stripe.SubscriptionSchedule.modify.call_args
+        self.assertEqual(modify_args[0], 'sub_sched_existing')
+        self.assertEqual(modify_kwargs['phases'][1]['items'][0]['quantity'], 3)
+        mock_audit_log.assert_called_once()
 
     @patch('instances.subscription_api._schedule_seat_reduction')
     def test_remove_seats(self, mock_schedule):
