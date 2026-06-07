@@ -25,6 +25,16 @@ from core.services.stripe import (
 )
 
 
+class FakeStripeObject:
+    """Minimal stand-in for Stripe SDK objects (dict access only, no .get())."""
+
+    def __init__(self, data):
+        self._data = data
+
+    def __getitem__(self, key):
+        return self._data[key]
+
+
 class SubscriptionAPITestCase(TestCase):
     """Test cases for Subscription API endpoints."""
 
@@ -213,6 +223,26 @@ class SubscriptionAPITestCase(TestCase):
         """Test period end extraction fails when no period data is available."""
         with self.assertRaises(ValueError):
             get_stripe_subscription_period_end({'items': {'data': []}})
+
+    def test_get_stripe_subscription_period_end_from_stripe_object(self):
+        """Test period end extraction works with Stripe SDK objects (no .get())."""
+        period_end = 1_700_000_000
+        stripe_sub = FakeStripeObject({
+            'items': FakeStripeObject({
+                'data': [
+                    FakeStripeObject({'current_period_end': period_end - 86_400}),
+                    FakeStripeObject({'current_period_end': period_end}),
+                ],
+            }),
+        })
+        self.assertEqual(get_stripe_subscription_period_end(stripe_sub), period_end)
+
+    def test_get_subscription_schedule_id_from_stripe_object(self):
+        """Test schedule ID extraction works with Stripe SDK objects."""
+        stripe_sub = FakeStripeObject({
+            'schedule': FakeStripeObject({'id': 'sub_sched_test'}),
+        })
+        self.assertEqual(_get_subscription_schedule_id(stripe_sub), 'sub_sched_test')
 
     def test_get_stripe_subscription_cancel_at_prefers_cancel_at(self):
         """Test cancellation date uses Stripe's resolved cancel_at field."""

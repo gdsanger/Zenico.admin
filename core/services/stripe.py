@@ -20,6 +20,22 @@ from core.services.audit import AuditService, AuditAction
 logger = logging.getLogger(__name__)
 
 
+def _stripe_get(obj, key, default=None):
+    """
+    Get a field from a Stripe SDK object or plain dict.
+
+    Stripe objects support bracket access but not dict-style .get().
+    """
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    try:
+        return obj[key]
+    except (KeyError, TypeError):
+        return default
+
+
 def get_stripe():
     """
     Get configured Stripe client using StripeConfig from database.
@@ -56,15 +72,15 @@ def get_stripe_subscription_period_end(stripe_sub) -> int:
     Raises:
         ValueError: If no period end can be determined
     """
-    period_end = stripe_sub.get('current_period_end')
+    period_end = _stripe_get(stripe_sub, 'current_period_end')
     if period_end is not None:
         return period_end
 
-    items = (stripe_sub.get('items') or {}).get('data') or []
+    items = _stripe_get(_stripe_get(stripe_sub, 'items'), 'data') or []
     period_ends = [
-        item['current_period_end']
+        _stripe_get(item, 'current_period_end')
         for item in items
-        if item.get('current_period_end') is not None
+        if _stripe_get(item, 'current_period_end') is not None
     ]
     if not period_ends:
         raise ValueError('Could not determine subscription period end from Stripe data')
@@ -89,19 +105,19 @@ def get_stripe_subscription_cancel_at(stripe_sub) -> int:
     Raises:
         ValueError: If no cancellation date can be determined
     """
-    cancel_at = stripe_sub.get('cancel_at')
+    cancel_at = _stripe_get(stripe_sub, 'cancel_at')
     if cancel_at is not None:
         return cancel_at
 
-    period_end = stripe_sub.get('current_period_end')
+    period_end = _stripe_get(stripe_sub, 'current_period_end')
     if period_end is not None:
         return period_end
 
-    items = (stripe_sub.get('items') or {}).get('data') or []
+    items = _stripe_get(_stripe_get(stripe_sub, 'items'), 'data') or []
     period_ends = [
-        item['current_period_end']
+        _stripe_get(item, 'current_period_end')
         for item in items
-        if item.get('current_period_end') is not None
+        if _stripe_get(item, 'current_period_end') is not None
     ]
     if not period_ends:
         raise ValueError('Could not determine subscription cancel date from Stripe data')

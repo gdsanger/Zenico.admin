@@ -19,6 +19,7 @@ from instances.models import Instance, UserLicense
 from customers.models import Subscription
 from core.services.stripe import (
     StripeService,
+    _stripe_get,
     get_stripe,
     get_stripe_subscription_cancel_at,
     get_stripe_subscription_period_end,
@@ -205,12 +206,12 @@ def _schedule_phase_items_from_phase(phase_items):
 
 def _get_subscription_schedule_id(stripe_sub):
     """Return the attached subscription schedule ID, if any."""
-    schedule = stripe_sub.get('schedule')
+    schedule = _stripe_get(stripe_sub, 'schedule')
     if not schedule:
         return None
     if isinstance(schedule, str):
         return schedule
-    return schedule.get('id')
+    return _stripe_get(schedule, 'id')
 
 
 def _build_schedule_phases_for_seat_reduction(schedule, stripe_sub, new_seats):
