@@ -168,6 +168,83 @@ def _create_seats_checkout(instance, additional_seats):
         raise
 
 
+def _is_user_seat_line_item(item):
+    """Return True if a Stripe subscription line item represents user seats."""
+    price = item.get('price') or {}
+    if isinstance(price, str):
+        return False
+    return 'user' in price.get('nickname', '').lower()
+
+
+def _build_schedule_items(subscription_items, user_seat_quantity):
+    """Build Stripe schedule phase items with an updated user seat quantity."""
+    return [
+        {
+            'price': item['price']['id'] if isinstance(item['price'], dict) else item['price'],
+            'quantity': user_seat_quantity if _is_user_seat_line_item(item) else item['quantity'],
+        }
+        for item in subscription_items
+    ]
+
+
+def _schedule_phase_items_from_phase(phase_items):
+    """Convert schedule phase items into the format expected by SubscriptionSchedule.modify."""
+    return [
+        {
+            'price': item['price'] if isinstance(item['price'], str) else item['price']['id'],
+            'quantity': item['quantity'],
+        }
+        for item in phase_items
+    ]
+
+
+def _get_subscription_schedule_id(stripe_sub):
+    """Return the attached subscription schedule ID, if any."""
+    schedule = stripe_sub.get('schedule')
+    if not schedule:
+        return None
+    if isinstance(schedule, str):
+        return schedule
+    return schedule.get('id')
+
+
+def _build_schedule_phases_for_seat_reduction(schedule, stripe_sub, new_seats):
+    """
+    Build schedule phases for a seat reduction at period end.
+
+    Preserves existing current phases and updates or appends the future phase.
+    """
+    period_end_ts = stripe_sub['current_period_end']
+    future_items = _build_schedule_items(stripe_sub['items']['data'], new_seats)
+
+    phases = []
+    has_future_phase = False
+
+    for phase in schedule['phases']:
+        is_future_phase = phase['start_date'] >= period_end_ts
+        phase_dict = {
+            'start_date': phase['start_date'],
+            'items': (
+                future_items
+                if is_future_phase
+                else _schedule_phase_items_from_phase(phase['items'])
+            ),
+        }
+        if phase.get('end_date'):
+            phase_dict['end_date'] = phase['end_date']
+        if is_future_phase:
+            has_future_phase = True
+        phases.append(phase_dict)
+
+    if not has_future_phase:
+        phases.append({
+            'start_date': period_end_ts,
+            'items': future_items,
+        })
+
+    return phases
+
+
 def _schedule_seat_reduction(instance, new_seats):
     """
     Schedule seat reduction to take effect at period end.
@@ -191,33 +268,26 @@ def _schedule_seat_reduction(instance, new_seats):
     try:
         stripe_api = get_stripe()
 
-        # Get current subscription
         stripe_sub = stripe_api.Subscription.retrieve(subscription.stripe_subscription_id)
-
-        # Schedule the update for period end
-        # In Stripe, this is done using subscription schedules
-        schedule = stripe_api.SubscriptionSchedule.create(
-            from_subscription=subscription.stripe_subscription_id,
-        )
-
-        # Get current period end
         period_end = date.fromtimestamp(stripe_sub['current_period_end'])
 
-        # Update schedule to reduce seats at period end
+        schedule_id = _get_subscription_schedule_id(stripe_sub)
+        if schedule_id:
+            schedule = stripe_api.SubscriptionSchedule.retrieve(schedule_id)
+        else:
+            schedule = stripe_api.SubscriptionSchedule.create(
+                from_subscription=subscription.stripe_subscription_id,
+            )
+            schedule_id = schedule.id
+            schedule = stripe_api.SubscriptionSchedule.retrieve(schedule_id)
+
         stripe_api.SubscriptionSchedule.modify(
-            schedule.id,
-            phases=[
-                {
-                    'items': [
-                        {
-                            'price': item['price']['id'],
-                            'quantity': new_seats if 'user' in item['price'].get('nickname', '').lower() else item['quantity'],
-                        }
-                        for item in stripe_sub['items']['data']
-                    ],
-                    'start_date': stripe_sub['current_period_end'],
-                }
-            ],
+            schedule_id,
+            phases=_build_schedule_phases_for_seat_reduction(
+                schedule=schedule,
+                stripe_sub=stripe_sub,
+                new_seats=new_seats,
+            ),
         )
 
         # Log audit
