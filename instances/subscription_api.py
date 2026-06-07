@@ -176,10 +176,10 @@ def _create_seats_checkout(instance, additional_seats):
 
 def _is_user_seat_line_item(item):
     """Return True if a Stripe subscription line item represents user seats."""
-    price = item.get('price') or {}
+    price = _stripe_get(item, 'price') or {}
     if isinstance(price, str):
         return False
-    return 'user' in price.get('nickname', '').lower()
+    return 'user' in _stripe_get(price, 'nickname', '').lower()
 
 
 def _build_schedule_items(subscription_items, user_seat_quantity):
