@@ -16,7 +16,12 @@ import stripe
 from billing.models import Coupon, CouponRedemption
 from customers.models import Customer, Subscription
 from core.services.audit import AuditService
-from core.services.stripe import get_stripe
+from core.services.stripe import (
+    get_stripe,
+    apply_stripe_subscription_promotion_code,
+    get_stripe_subscription_discount_id,
+    remove_stripe_subscription_discount,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -196,21 +201,19 @@ class CouponService:
         if existing:
             raise ValidationError(f'Der Code {coupon.code} wurde bereits von diesem Kunden eingelöst')
 
-        # 3. Apply to Stripe subscription
-        try:
-            # Initialize Stripe API with configured key
-            get_stripe()
-
-            # Apply promotion code to Stripe subscription
-            stripe_subscription = stripe.Subscription.modify(
-                subscription.stripe_subscription_id,
-                promotion_code=coupon.stripe_promotion_code_id,
+        if not coupon.stripe_promotion_code_id:
+            raise ValidationError(
+                f'Der Gutschein {coupon.code} ist nicht mit Stripe synchronisiert. '
+                'Bitte erstellen Sie den Gutschein erneut oder synchronisieren Sie ihn manuell.'
             )
 
-            # Extract discount ID from Stripe response
-            discount_id = ''
-            if stripe_subscription.get('discount'):
-                discount_id = stripe_subscription['discount'].get('id', '')
+        # 3. Apply to Stripe subscription
+        try:
+            stripe_subscription = apply_stripe_subscription_promotion_code(
+                subscription.stripe_subscription_id,
+                coupon.stripe_promotion_code_id,
+            )
+            discount_id = get_stripe_subscription_discount_id(stripe_subscription)
 
         except Exception as e:
             logger.exception(f'Failed to apply coupon {coupon.code} to subscription {subscription.stripe_subscription_id}: {e}')
@@ -275,11 +278,7 @@ class CouponService:
         coupon_code = subscription.coupon.code
 
         try:
-            # Initialize Stripe API with configured key
-            get_stripe()
-
-            # Remove discount from Stripe subscription
-            stripe.Subscription.delete_discount(subscription.stripe_subscription_id)
+            remove_stripe_subscription_discount(subscription.stripe_subscription_id)
 
             # Update local subscription
             subscription.coupon = None

@@ -13,6 +13,11 @@ from unittest.mock import patch, MagicMock
 
 from billing.models import Coupon, CouponRedemption
 from billing.coupon_service import CouponService
+from core.services.stripe import (
+    apply_stripe_subscription_promotion_code,
+    get_stripe_subscription_discount_id,
+    remove_stripe_subscription_discount,
+)
 from customers.models import Customer, Plan, Subscription
 
 AdminUser = get_user_model()
@@ -393,13 +398,13 @@ class CouponServiceTest(TestCase):
         mock_coupon.assert_called_once()
         mock_promo.assert_called_once()
 
-    @patch('stripe.Subscription.modify')
-    def test_apply_to_subscription_success(self, mock_modify):
+    @patch('billing.coupon_service.apply_stripe_subscription_promotion_code')
+    def test_apply_to_subscription_success(self, mock_apply):
         """Test successfully applying coupon to subscription."""
         self.coupon.stripe_promotion_code_id = 'promo_test123'
         self.coupon.save()
 
-        mock_modify.return_value = {'discount': {'id': 'di_test123'}}
+        mock_apply.return_value = {'discounts': [{'id': 'di_test123'}]}
 
         redemption = CouponService.apply_to_subscription(
             coupon=self.coupon,
@@ -410,12 +415,29 @@ class CouponServiceTest(TestCase):
         self.assertIsNotNone(redemption)
         self.assertEqual(redemption.coupon, self.coupon)
         self.assertEqual(redemption.customer, self.customer)
+        self.assertEqual(redemption.stripe_discount_id, 'di_test123')
 
         self.coupon.refresh_from_db()
         self.assertEqual(self.coupon.redemptions_count, 1)
 
         self.subscription.refresh_from_db()
         self.assertEqual(self.subscription.coupon, self.coupon)
+
+        mock_apply.assert_called_once_with(
+            self.subscription.stripe_subscription_id,
+            'promo_test123',
+        )
+
+    def test_apply_to_subscription_missing_stripe_promotion_code(self):
+        """Test applying coupon without Stripe sync raises ValidationError."""
+        with self.assertRaises(ValidationError) as context:
+            CouponService.apply_to_subscription(
+                coupon=self.coupon,
+                subscription=self.subscription,
+                customer=self.customer
+            )
+
+        self.assertIn('nicht mit Stripe synchronisiert', str(context.exception))
 
     def test_apply_to_subscription_invalid_coupon(self):
         """Test applying invalid coupon raises ValidationError."""
@@ -449,8 +471,8 @@ class CouponServiceTest(TestCase):
 
         self.assertIn('bereits', str(context.exception))
 
-    @patch('stripe.Subscription.delete_discount')
-    def test_remove_from_subscription(self, mock_delete):
+    @patch('billing.coupon_service.remove_stripe_subscription_discount')
+    def test_remove_from_subscription(self, mock_remove):
         """Test removing coupon from subscription."""
         self.subscription.coupon = self.coupon
         self.subscription.save()
@@ -460,7 +482,59 @@ class CouponServiceTest(TestCase):
         self.subscription.refresh_from_db()
         self.assertIsNone(self.subscription.coupon)
 
-        mock_delete.assert_called_once_with(self.subscription.stripe_subscription_id)
+        mock_remove.assert_called_once_with(self.subscription.stripe_subscription_id)
+
+
+class StripeCouponHelperTest(TestCase):
+    """Tests for Stripe coupon helper functions."""
+
+    def test_get_stripe_subscription_discount_id_from_discounts(self):
+        """Test discount ID extraction from Basil API discounts array."""
+        stripe_sub = {'discounts': [{'id': 'di_test123'}]}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_test123')
+
+    def test_get_stripe_subscription_discount_id_from_discount_id_strings(self):
+        """Test discount ID extraction when Basil returns bare discount IDs."""
+        stripe_sub = {'discounts': ['di_test123']}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_test123')
+
+    def test_get_stripe_subscription_discount_id_from_legacy_discount(self):
+        """Test discount ID extraction from legacy single discount field."""
+        stripe_sub = {'discount': {'id': 'di_legacy123'}}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_legacy123')
+
+    def test_get_stripe_subscription_discount_id_from_legacy_discount_string(self):
+        """Test discount ID extraction from legacy bare discount ID."""
+        stripe_sub = {'discount': 'di_legacy123'}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_legacy123')
+
+    @patch('core.services.stripe.get_stripe')
+    def test_apply_stripe_subscription_promotion_code_uses_discounts(self, mock_get_stripe):
+        """Test applying promotion code uses discounts array on Basil API."""
+        mock_stripe = MagicMock()
+        mock_get_stripe.return_value = mock_stripe
+        mock_stripe.Subscription.modify.return_value = {'discounts': ['di_test123']}
+
+        result = apply_stripe_subscription_promotion_code('sub_test123', 'promo_test123')
+
+        mock_stripe.Subscription.modify.assert_called_once_with(
+            'sub_test123',
+            discounts=[{'promotion_code': 'promo_test123'}],
+        )
+        self.assertEqual(get_stripe_subscription_discount_id(result), 'di_test123')
+
+    @patch('core.services.stripe.get_stripe')
+    def test_remove_stripe_subscription_discount_clears_discounts(self, mock_get_stripe):
+        """Test removing discount clears discounts array on Basil API."""
+        mock_stripe = MagicMock()
+        mock_get_stripe.return_value = mock_stripe
+
+        remove_stripe_subscription_discount('sub_test123')
+
+        mock_stripe.Subscription.modify.assert_called_once_with(
+            'sub_test123',
+            discounts='',
+        )
 
 
 class InternalCouponTest(TestCase):

@@ -139,7 +139,10 @@
                 <!-- Coupon Application Form -->
                 {% if customer.active_subscription and not customer.active_subscription.coupon %}
                 <hr>
-                <form hx-post="{% url 'ui:coupon_apply' %}" hx-target="#coupon-result" class="mt-3">
+                <form hx-post="{% url 'ui:coupon_apply' %}"
+                      hx-target="#coupon-result"
+                      class="mt-3"
+                      hx-on::before-swap="if (event.detail.xhr.status === 400) { event.detail.shouldSwap = true; event.detail.isError = false; }">
                     {% csrf_token %}
                     <input type="hidden" name="subscription_id" value="{{ customer.active_subscription.pk }}">
                     <div class="mb-2">
