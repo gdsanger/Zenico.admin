@@ -40,6 +40,76 @@ def get_stripe():
     return stripe
 
 
+def get_stripe_subscription_period_end(stripe_sub) -> int:
+    """
+    Get the current billing period end timestamp from a Stripe subscription.
+
+    Stripe Basil API (2025-03-31+) removed subscription-level current_period_end
+    and moved it to subscription items. This helper supports both API versions.
+
+    Args:
+        stripe_sub: Stripe subscription object or dict-like payload
+
+    Returns:
+        int: Unix timestamp for the billing period end
+
+    Raises:
+        ValueError: If no period end can be determined
+    """
+    period_end = stripe_sub.get('current_period_end')
+    if period_end is not None:
+        return period_end
+
+    items = (stripe_sub.get('items') or {}).get('data') or []
+    period_ends = [
+        item['current_period_end']
+        for item in items
+        if item.get('current_period_end') is not None
+    ]
+    if not period_ends:
+        raise ValueError('Could not determine subscription period end from Stripe data')
+
+    return max(period_ends)
+
+
+def get_stripe_subscription_cancel_at(stripe_sub) -> int:
+    """
+    Get the scheduled cancellation timestamp from a Stripe subscription.
+
+    Prefer Stripe's resolved cancel_at field, which reflects the actual
+    cancellation date after cancel_at_period_end or cancel_at scheduling.
+    Falls back to period-end fields only when cancel_at is not set.
+
+    Args:
+        stripe_sub: Stripe subscription object or dict-like payload
+
+    Returns:
+        int: Unix timestamp when the subscription will be canceled
+
+    Raises:
+        ValueError: If no cancellation date can be determined
+    """
+    cancel_at = stripe_sub.get('cancel_at')
+    if cancel_at is not None:
+        return cancel_at
+
+    period_end = stripe_sub.get('current_period_end')
+    if period_end is not None:
+        return period_end
+
+    items = (stripe_sub.get('items') or {}).get('data') or []
+    period_ends = [
+        item['current_period_end']
+        for item in items
+        if item.get('current_period_end') is not None
+    ]
+    if not period_ends:
+        raise ValueError('Could not determine subscription cancel date from Stripe data')
+
+    # cancel_at_period_end defaults to the earliest item period end on Basil API.
+    return min(period_ends)
+
+
 class StripeService:
     """
     Service for interacting with Stripe API.

@@ -13,10 +13,15 @@ from instances.models import Instance, UserLicense
 from customers.models import Customer, Plan, Subscription
 from instances.subscription_api import (
     _build_schedule_phases_for_seat_reduction,
+    _cancel_stripe_subscription,
     _count_active_users,
     _get_price_per_seat,
     _get_subscription_schedule_id,
     _schedule_seat_reduction,
+)
+from core.services.stripe import (
+    get_stripe_subscription_cancel_at,
+    get_stripe_subscription_period_end,
 )
 
 
@@ -185,6 +190,81 @@ class SubscriptionAPITestCase(TestCase):
             'sub_sched_test',
         )
 
+    def test_get_stripe_subscription_period_end_from_subscription(self):
+        """Test period end extraction from legacy subscription-level field."""
+        period_end = 1_700_000_000
+        stripe_sub = {'current_period_end': period_end, 'items': {'data': []}}
+        self.assertEqual(get_stripe_subscription_period_end(stripe_sub), period_end)
+
+    def test_get_stripe_subscription_period_end_from_items(self):
+        """Test period end extraction from subscription item fields (Basil API)."""
+        period_end = 1_700_000_000
+        stripe_sub = {
+            'items': {
+                'data': [
+                    {'current_period_end': period_end - 86_400},
+                    {'current_period_end': period_end},
+                ]
+            }
+        }
+        self.assertEqual(get_stripe_subscription_period_end(stripe_sub), period_end)
+
+    def test_get_stripe_subscription_period_end_missing(self):
+        """Test period end extraction fails when no period data is available."""
+        with self.assertRaises(ValueError):
+            get_stripe_subscription_period_end({'items': {'data': []}})
+
+    def test_get_stripe_subscription_cancel_at_prefers_cancel_at(self):
+        """Test cancellation date uses Stripe's resolved cancel_at field."""
+        cancel_at = 1_700_000_000
+        stripe_sub = {
+            'cancel_at': cancel_at,
+            'items': {
+                'data': [
+                    {'current_period_end': cancel_at - 86_400},
+                    {'current_period_end': cancel_at + 86_400},
+                ]
+            },
+        }
+        self.assertEqual(get_stripe_subscription_cancel_at(stripe_sub), cancel_at)
+
+    def test_get_stripe_subscription_cancel_at_uses_min_item_period_end(self):
+        """Test cancellation fallback uses earliest item period end, not latest."""
+        earliest = 1_700_000_000
+        latest = earliest + 2_592_000
+        stripe_sub = {
+            'items': {
+                'data': [
+                    {'current_period_end': latest},
+                    {'current_period_end': earliest},
+                ]
+            }
+        }
+        self.assertEqual(get_stripe_subscription_cancel_at(stripe_sub), earliest)
+        self.assertEqual(get_stripe_subscription_period_end(stripe_sub), latest)
+
+    @patch('instances.subscription_api.StripeService.cancel_subscription')
+    def test_cancel_stripe_subscription_uses_cancel_at(self, mock_cancel):
+        """Test cancellation stores Stripe's cancel_at date, not max item period end."""
+        cancel_at = 1_700_000_000
+        mock_cancel.return_value = {
+            'cancel_at': cancel_at,
+            'items': {
+                'data': [
+                    {'current_period_end': cancel_at + 2_592_000},
+                ]
+            },
+        }
+
+        cancelled_at = _cancel_stripe_subscription(self.instance)
+
+        self.assertEqual(cancelled_at, date.fromtimestamp(cancel_at))
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.cancelled_at.date(),
+            date.fromtimestamp(cancel_at),
+        )
+
     def test_build_schedule_phases_for_seat_reduction_appends_future_phase(self):
         """Test schedule phase builder adds a future phase when none exists."""
         period_end = 1_700_000_000
@@ -264,6 +344,43 @@ class SubscriptionAPITestCase(TestCase):
 
         self.assertEqual(len(phases), 2)
         self.assertEqual(phases[1]['items'][0]['quantity'], 3)
+
+    @patch('instances.subscription_api.AuditService.log')
+    @patch('instances.subscription_api.get_stripe')
+    def test_schedule_seat_reduction_uses_item_level_period_end(
+        self, mock_get_stripe, mock_audit_log
+    ):
+        """Test seat reduction works with Basil API item-level period fields."""
+        period_end = 1_700_000_000
+        mock_stripe = MagicMock()
+        mock_get_stripe.return_value = mock_stripe
+        mock_stripe.Subscription.retrieve.return_value = {
+            'schedule': None,
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': 'User Seats'},
+                        'quantity': 5,
+                        'current_period_end': period_end,
+                    }
+                ]
+            },
+        }
+        mock_stripe.SubscriptionSchedule.create.return_value = MagicMock(id='sub_sched_new')
+        mock_stripe.SubscriptionSchedule.retrieve.return_value = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'items': [{'price': 'price_user', 'quantity': 5}],
+                }
+            ]
+        }
+
+        effective_date = _schedule_seat_reduction(self.instance, new_seats=3)
+
+        self.assertEqual(effective_date, date.fromtimestamp(period_end))
+        mock_stripe.SubscriptionSchedule.modify.assert_called_once()
+        mock_audit_log.assert_called_once()
 
     @patch('instances.subscription_api.AuditService.log')
     @patch('instances.subscription_api.get_stripe')
