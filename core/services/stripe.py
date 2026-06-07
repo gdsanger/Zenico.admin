@@ -25,13 +25,16 @@ def _stripe_get(obj, key, default=None):
     Get a field from a Stripe SDK object or plain dict.
 
     Stripe objects support bracket access but not dict-style .get().
+    Returns default if the value is None.
     """
     if obj is None:
         return default
     if isinstance(obj, dict):
-        return obj.get(key, default)
+        value = obj.get(key, default)
+        return default if value is None else value
     try:
-        return obj[key]
+        value = obj[key]
+        return default if value is None else value
     except (KeyError, TypeError):
         return default
 

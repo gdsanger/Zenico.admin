@@ -573,3 +573,55 @@ class StripeServiceTests(TestCase):
                 action='stripe.portal_session_created',
                 resource_id='bps_test123'
             ).exists())
+
+    def test_stripe_get_with_dict_and_default(self):
+        """Test _stripe_get returns default when key is missing from dict."""
+        from core.services.stripe import _stripe_get
+
+        obj = {'key1': 'value1'}
+        self.assertEqual(_stripe_get(obj, 'key1'), 'value1')
+        self.assertEqual(_stripe_get(obj, 'key2', 'default'), 'default')
+
+    def test_stripe_get_with_none_value_returns_default(self):
+        """Test _stripe_get returns default when value is None in dict."""
+        from core.services.stripe import _stripe_get
+
+        obj = {'nickname': None}
+        self.assertEqual(_stripe_get(obj, 'nickname', ''), '')
+        self.assertEqual(_stripe_get(obj, 'nickname', 'default'), 'default')
+
+    def test_stripe_get_with_none_object(self):
+        """Test _stripe_get returns default when object is None."""
+        from core.services.stripe import _stripe_get
+
+        self.assertEqual(_stripe_get(None, 'key', 'default'), 'default')
+
+    def test_stripe_get_with_stripe_object_and_none_value(self):
+        """Test _stripe_get returns default when Stripe object has None value."""
+        from core.services.stripe import _stripe_get
+
+        class FakeStripeObject:
+            def __init__(self, data):
+                self._data = data
+
+            def __getitem__(self, key):
+                return self._data[key]
+
+        obj = FakeStripeObject({'nickname': None})
+        self.assertEqual(_stripe_get(obj, 'nickname', ''), '')
+        self.assertEqual(_stripe_get(obj, 'nickname', 'default'), 'default')
+
+    def test_stripe_get_with_stripe_object_missing_key(self):
+        """Test _stripe_get returns default when key is missing from Stripe object."""
+        from core.services.stripe import _stripe_get
+
+        class FakeStripeObject:
+            def __init__(self, data):
+                self._data = data
+
+            def __getitem__(self, key):
+                return self._data[key]
+
+        obj = FakeStripeObject({'key1': 'value1'})
+        self.assertEqual(_stripe_get(obj, 'key1'), 'value1')
+        self.assertEqual(_stripe_get(obj, 'key2', 'default'), 'default')
