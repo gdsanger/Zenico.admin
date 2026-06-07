@@ -40,6 +40,38 @@ def get_stripe():
     return stripe
 
 
+def get_stripe_subscription_period_end(stripe_sub) -> int:
+    """
+    Get the current billing period end timestamp from a Stripe subscription.
+
+    Stripe Basil API (2025-03-31+) removed subscription-level current_period_end
+    and moved it to subscription items. This helper supports both API versions.
+
+    Args:
+        stripe_sub: Stripe subscription object or dict-like payload
+
+    Returns:
+        int: Unix timestamp for the billing period end
+
+    Raises:
+        ValueError: If no period end can be determined
+    """
+    period_end = stripe_sub.get('current_period_end')
+    if period_end is not None:
+        return period_end
+
+    items = (stripe_sub.get('items') or {}).get('data') or []
+    period_ends = [
+        item['current_period_end']
+        for item in items
+        if item.get('current_period_end') is not None
+    ]
+    if not period_ends:
+        raise ValueError('Could not determine subscription period end from Stripe data')
+
+    return max(period_ends)
+
+
 class StripeService:
     """
     Service for interacting with Stripe API.

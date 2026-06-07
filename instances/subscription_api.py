@@ -17,7 +17,7 @@ from rest_framework.permissions import IsAuthenticated
 from instances.authentication import ApiKeyAuthentication
 from instances.models import Instance, UserLicense
 from customers.models import Subscription
-from core.services.stripe import StripeService, get_stripe
+from core.services.stripe import StripeService, get_stripe, get_stripe_subscription_period_end
 from core.services.audit import AuditService, AuditAction
 from core.services.mail import MailService
 
@@ -214,7 +214,7 @@ def _build_schedule_phases_for_seat_reduction(schedule, stripe_sub, new_seats):
 
     Preserves existing current phases and updates or appends the future phase.
     """
-    period_end_ts = stripe_sub['current_period_end']
+    period_end_ts = get_stripe_subscription_period_end(stripe_sub)
     future_items = _build_schedule_items(stripe_sub['items']['data'], new_seats)
 
     phases = []
@@ -269,7 +269,7 @@ def _schedule_seat_reduction(instance, new_seats):
         stripe_api = get_stripe()
 
         stripe_sub = stripe_api.Subscription.retrieve(subscription.stripe_subscription_id)
-        period_end = date.fromtimestamp(stripe_sub['current_period_end'])
+        period_end = date.fromtimestamp(get_stripe_subscription_period_end(stripe_sub))
 
         schedule_id = _get_subscription_schedule_id(stripe_sub)
         if schedule_id:
@@ -371,7 +371,7 @@ def _cancel_stripe_subscription(instance):
         cancelled_sub = StripeService.cancel_subscription(subscription, at_period_end=True)
 
         # Get period end date
-        period_end = date.fromtimestamp(cancelled_sub['current_period_end'])
+        period_end = date.fromtimestamp(get_stripe_subscription_period_end(cancelled_sub))
 
         # Update subscription
         subscription.cancelled_at = timezone.make_aware(
