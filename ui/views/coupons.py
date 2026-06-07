@@ -22,6 +22,21 @@ from ui.decorators import role_required
 logger = logging.getLogger(__name__)
 
 
+def _format_validation_error(error: ValidationError) -> str:
+    """Format ValidationError for display in HTML responses."""
+    if hasattr(error, 'message_dict'):
+        messages = []
+        for field_messages in error.message_dict.values():
+            if isinstance(field_messages, (list, tuple)):
+                messages.extend(str(message) for message in field_messages)
+            else:
+                messages.append(str(field_messages))
+        return ' '.join(messages)
+    if hasattr(error, 'messages'):
+        return ' '.join(str(message) for message in error.messages)
+    return str(error)
+
+
 @method_decorator(login_required, name='dispatch')
 @method_decorator(role_required('superadmin', 'billing'), name='dispatch')
 class CouponListView(ListView):
@@ -279,7 +294,7 @@ def coupon_apply(request):
 
     except ValidationError as e:
         return HttpResponse(
-            f'<div class="alert alert-danger">{str(e)}</div>',
+            f'<div class="alert alert-danger">{_format_validation_error(e)}</div>',
             status=400
         )
     except Exception as e:

@@ -126,6 +126,69 @@ def get_stripe_subscription_cancel_at(stripe_sub) -> int:
     return min(period_ends)
 
 
+def get_stripe_subscription_discount_id(stripe_sub) -> str:
+    """
+    Get the first discount ID from a Stripe subscription response.
+
+    Stripe Basil API (2025-03-31+) uses a discounts array instead of a single
+    discount field on subscriptions.
+    """
+    discounts = _stripe_get(stripe_sub, 'discounts') or []
+    if discounts:
+        first = discounts[0]
+        discount_id = _stripe_get(first, 'id')
+        if discount_id:
+            return discount_id
+
+    discount = _stripe_get(stripe_sub, 'discount')
+    if discount:
+        return _stripe_get(discount, 'id', '')
+
+    return ''
+
+
+def apply_stripe_subscription_promotion_code(stripe_subscription_id: str, promotion_code_id: str):
+    """
+    Apply a promotion code to a Stripe subscription.
+
+    Uses the discounts array introduced in Stripe Basil API (2025-03-31+),
+    with a fallback to the legacy promotion_code parameter.
+    """
+    stripe_api = get_stripe()
+    try:
+        return stripe_api.Subscription.modify(
+            stripe_subscription_id,
+            discounts=[{'promotion_code': promotion_code_id}],
+        )
+    except stripe.error.InvalidRequestError as exc:
+        error_text = str(exc).lower()
+        if 'discounts' in error_text or 'unknown parameter' in error_text:
+            return stripe_api.Subscription.modify(
+                stripe_subscription_id,
+                promotion_code=promotion_code_id,
+            )
+        raise
+
+
+def remove_stripe_subscription_discount(stripe_subscription_id: str):
+    """
+    Remove all discounts from a Stripe subscription.
+
+    Uses discounts='' on Basil API, with a fallback to delete_discount.
+    """
+    stripe_api = get_stripe()
+    try:
+        return stripe_api.Subscription.modify(
+            stripe_subscription_id,
+            discounts='',
+        )
+    except stripe.error.InvalidRequestError as exc:
+        error_text = str(exc).lower()
+        if 'discounts' in error_text or 'unknown parameter' in error_text:
+            return stripe_api.Subscription.delete_discount(stripe_subscription_id)
+        raise
+
+
 class StripeService:
     """
     Service for interacting with Stripe API.

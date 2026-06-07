@@ -54,8 +54,22 @@ document.body.addEventListener('htmx:afterSwap', function(evt) {
     });
 });
 
+document.body.addEventListener('htmx:beforeSwap', function(evt) {
+    // Allow server-side validation errors (4xx) to swap into the target element
+    const status = evt.detail.xhr.status;
+    if (status >= 400 && status < 500 && evt.detail.target) {
+        evt.detail.shouldSwap = true;
+        evt.detail.isError = false;
+    }
+});
+
 document.body.addEventListener('htmx:responseError', function(evt) {
-    // Handle HTMX errors
+    // Skip generic alert when validation error was already swapped into the target
+    const status = evt.detail.xhr.status;
+    if (status >= 400 && status < 500 && evt.detail.target) {
+        return;
+    }
+
     console.error('HTMX Error:', evt.detail);
     alert('An error occurred. Please try again.');
 });
