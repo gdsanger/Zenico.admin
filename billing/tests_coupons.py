@@ -493,9 +493,19 @@ class StripeCouponHelperTest(TestCase):
         stripe_sub = {'discounts': [{'id': 'di_test123'}]}
         self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_test123')
 
+    def test_get_stripe_subscription_discount_id_from_discount_id_strings(self):
+        """Test discount ID extraction when Basil returns bare discount IDs."""
+        stripe_sub = {'discounts': ['di_test123']}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_test123')
+
     def test_get_stripe_subscription_discount_id_from_legacy_discount(self):
         """Test discount ID extraction from legacy single discount field."""
         stripe_sub = {'discount': {'id': 'di_legacy123'}}
+        self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_legacy123')
+
+    def test_get_stripe_subscription_discount_id_from_legacy_discount_string(self):
+        """Test discount ID extraction from legacy bare discount ID."""
+        stripe_sub = {'discount': 'di_legacy123'}
         self.assertEqual(get_stripe_subscription_discount_id(stripe_sub), 'di_legacy123')
 
     @patch('core.services.stripe.get_stripe')
@@ -503,7 +513,7 @@ class StripeCouponHelperTest(TestCase):
         """Test applying promotion code uses discounts array on Basil API."""
         mock_stripe = MagicMock()
         mock_get_stripe.return_value = mock_stripe
-        mock_stripe.Subscription.modify.return_value = {'discounts': [{'id': 'di_test123'}]}
+        mock_stripe.Subscription.modify.return_value = {'discounts': ['di_test123']}
 
         result = apply_stripe_subscription_promotion_code('sub_test123', 'promo_test123')
 

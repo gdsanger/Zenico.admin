@@ -136,12 +136,16 @@ def get_stripe_subscription_discount_id(stripe_sub) -> str:
     discounts = _stripe_get(stripe_sub, 'discounts') or []
     if discounts:
         first = discounts[0]
+        if isinstance(first, str):
+            return first
         discount_id = _stripe_get(first, 'id')
         if discount_id:
             return discount_id
 
     discount = _stripe_get(stripe_sub, 'discount')
     if discount:
+        if isinstance(discount, str):
+            return discount
         return _stripe_get(discount, 'id', '')
 
     return ''
