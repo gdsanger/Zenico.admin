@@ -51,8 +51,17 @@
                     <tr>
                         <th>KI-Addon:</th>
                         <td>
-                            {% if instance.ai_addon_active %}
-                            <i class="ti ti-check text-success"></i> Aktiv
+                            {% if instance.customer.has_ai_addon %}
+                            <div class="d-flex align-items-center justify-content-between">
+                                <div>
+                                    <span class="badge bg-success">KI-Addon aktiv</span>
+                                    {% if instance.customer.ai_addon_cancelled_at %}
+                                    <small class="text-muted ms-2">
+                                        Endet am {{ instance.customer.ai_addon_cancelled_at|date:"d.m.Y" }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
                             {% else %}
                             -
                             {% endif %}

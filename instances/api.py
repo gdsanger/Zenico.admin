@@ -155,6 +155,7 @@ class InstanceRegisterView(APIView):
             'user_seats': instance.user_seats,
             'instance_status': instance.status,
             'ai_addon': subscription.ai_addon_active if subscription else False,
+            'ai_addon_ends_at': customer.ai_addon_cancelled_at,
             'ai_weekly_limit': budget.weekly_limit,
             'ai_tokens_used_this_week': budget.tokens_used_week,
             'ai_tokens_remaining_this_week': budget.tokens_remaining,

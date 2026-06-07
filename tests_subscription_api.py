@@ -589,6 +589,34 @@ class SubscriptionAPITestCase(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('error', response.json())
 
+    @patch('instances.subscription_api._cancel_ai_addon_stripe')
+    def test_cancel_ai_addon(self, mock_cancel):
+        """Test POST /api/instance/subscription/cancel-ai-addon/ endpoint."""
+        self.subscription.ai_addon_active = True
+        self.subscription.save()
+        self.instance.ai_addon_active = True
+        self.instance.save()
+
+        ends_at = (date.today() + timedelta(days=30)).isoformat()
+        mock_cancel.return_value = ends_at
+
+        response = self.client.post('/api/instance/subscription/cancel-ai-addon/')
+
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['success'])
+        self.assertEqual(data['ai_addon_ends_at'], ends_at)
+
+        self.customer.refresh_from_db()
+        self.assertEqual(self.customer.ai_addon_cancelled_at.isoformat(), ends_at)
+
+    def test_cancel_ai_addon_not_active(self):
+        """Test cancelling AI addon when not active."""
+        response = self.client.post('/api/instance/subscription/cancel-ai-addon/')
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(response.json()['error'], 'KI-Addon ist nicht aktiv.')
+
     @patch('instances.subscription_api._cancel_stripe_subscription')
     @patch('instances.subscription_api._send_cancellation_confirmation')
     @patch('instances.subscription_api._notify_admin_cancellation')
