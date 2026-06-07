@@ -72,6 +72,44 @@ def get_stripe_subscription_period_end(stripe_sub) -> int:
     return max(period_ends)
 
 
+def get_stripe_subscription_cancel_at(stripe_sub) -> int:
+    """
+    Get the scheduled cancellation timestamp from a Stripe subscription.
+
+    Prefer Stripe's resolved cancel_at field, which reflects the actual
+    cancellation date after cancel_at_period_end or cancel_at scheduling.
+    Falls back to period-end fields only when cancel_at is not set.
+
+    Args:
+        stripe_sub: Stripe subscription object or dict-like payload
+
+    Returns:
+        int: Unix timestamp when the subscription will be canceled
+
+    Raises:
+        ValueError: If no cancellation date can be determined
+    """
+    cancel_at = stripe_sub.get('cancel_at')
+    if cancel_at is not None:
+        return cancel_at
+
+    period_end = stripe_sub.get('current_period_end')
+    if period_end is not None:
+        return period_end
+
+    items = (stripe_sub.get('items') or {}).get('data') or []
+    period_ends = [
+        item['current_period_end']
+        for item in items
+        if item.get('current_period_end') is not None
+    ]
+    if not period_ends:
+        raise ValueError('Could not determine subscription cancel date from Stripe data')
+
+    # cancel_at_period_end defaults to the earliest item period end on Basil API.
+    return min(period_ends)
+
+
 class StripeService:
     """
     Service for interacting with Stripe API.

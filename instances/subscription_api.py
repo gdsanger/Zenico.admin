@@ -17,7 +17,12 @@ from rest_framework.permissions import IsAuthenticated
 from instances.authentication import ApiKeyAuthentication
 from instances.models import Instance, UserLicense
 from customers.models import Subscription
-from core.services.stripe import StripeService, get_stripe, get_stripe_subscription_period_end
+from core.services.stripe import (
+    StripeService,
+    get_stripe,
+    get_stripe_subscription_cancel_at,
+    get_stripe_subscription_period_end,
+)
 from core.services.audit import AuditService, AuditAction
 from core.services.mail import MailService
 
@@ -370,8 +375,8 @@ def _cancel_stripe_subscription(instance):
         # Cancel subscription at period end
         cancelled_sub = StripeService.cancel_subscription(subscription, at_period_end=True)
 
-        # Get period end date
-        period_end = date.fromtimestamp(get_stripe_subscription_period_end(cancelled_sub))
+        # Use Stripe's resolved cancel_at, not max item period end.
+        period_end = date.fromtimestamp(get_stripe_subscription_cancel_at(cancelled_sub))
 
         # Update subscription
         subscription.cancelled_at = timezone.make_aware(

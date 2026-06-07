@@ -13,12 +13,16 @@ from instances.models import Instance, UserLicense
 from customers.models import Customer, Plan, Subscription
 from instances.subscription_api import (
     _build_schedule_phases_for_seat_reduction,
+    _cancel_stripe_subscription,
     _count_active_users,
     _get_price_per_seat,
     _get_subscription_schedule_id,
     _schedule_seat_reduction,
 )
-from core.services.stripe import get_stripe_subscription_period_end
+from core.services.stripe import (
+    get_stripe_subscription_cancel_at,
+    get_stripe_subscription_period_end,
+)
 
 
 class SubscriptionAPITestCase(TestCase):
@@ -209,6 +213,57 @@ class SubscriptionAPITestCase(TestCase):
         """Test period end extraction fails when no period data is available."""
         with self.assertRaises(ValueError):
             get_stripe_subscription_period_end({'items': {'data': []}})
+
+    def test_get_stripe_subscription_cancel_at_prefers_cancel_at(self):
+        """Test cancellation date uses Stripe's resolved cancel_at field."""
+        cancel_at = 1_700_000_000
+        stripe_sub = {
+            'cancel_at': cancel_at,
+            'items': {
+                'data': [
+                    {'current_period_end': cancel_at - 86_400},
+                    {'current_period_end': cancel_at + 86_400},
+                ]
+            },
+        }
+        self.assertEqual(get_stripe_subscription_cancel_at(stripe_sub), cancel_at)
+
+    def test_get_stripe_subscription_cancel_at_uses_min_item_period_end(self):
+        """Test cancellation fallback uses earliest item period end, not latest."""
+        earliest = 1_700_000_000
+        latest = earliest + 2_592_000
+        stripe_sub = {
+            'items': {
+                'data': [
+                    {'current_period_end': latest},
+                    {'current_period_end': earliest},
+                ]
+            }
+        }
+        self.assertEqual(get_stripe_subscription_cancel_at(stripe_sub), earliest)
+        self.assertEqual(get_stripe_subscription_period_end(stripe_sub), latest)
+
+    @patch('instances.subscription_api.StripeService.cancel_subscription')
+    def test_cancel_stripe_subscription_uses_cancel_at(self, mock_cancel):
+        """Test cancellation stores Stripe's cancel_at date, not max item period end."""
+        cancel_at = 1_700_000_000
+        mock_cancel.return_value = {
+            'cancel_at': cancel_at,
+            'items': {
+                'data': [
+                    {'current_period_end': cancel_at + 2_592_000},
+                ]
+            },
+        }
+
+        cancelled_at = _cancel_stripe_subscription(self.instance)
+
+        self.assertEqual(cancelled_at, date.fromtimestamp(cancel_at))
+        self.subscription.refresh_from_db()
+        self.assertEqual(
+            self.subscription.cancelled_at.date(),
+            date.fromtimestamp(cancel_at),
+        )
 
     def test_build_schedule_phases_for_seat_reduction_appends_future_phase(self):
         """Test schedule phase builder adds a future phase when none exists."""
