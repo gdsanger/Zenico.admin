@@ -233,6 +233,10 @@ FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
 FIELD_ENCRYPTION_KEY = os.getenv('FIELD_ENCRYPTION_KEY', '')
 
 
+# Stripe Configuration
+STRIPE_AI_ADDON_PRICE_ID = os.getenv('STRIPE_AI_ADDON_PRICE_ID', '')
+
+
 # AI Provider Configuration
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', '')
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '')

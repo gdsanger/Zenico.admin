@@ -183,6 +183,12 @@ class Customer(models.Model):
         verbose_name='coupon discount %',
         help_text='Discount percentage (if applicable)'
     )
+    ai_addon_cancelled_at = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='AI addon cancelled at',
+        help_text='KI-Addon läuft bis zu diesem Datum',
+    )
     notes = models.TextField(
         blank=True,
         verbose_name='internal notes',
@@ -236,6 +242,14 @@ class Customer(models.Model):
         Returns True if the customer status is 'active'.
         """
         return self.status == 'active'
+
+    @property
+    def has_ai_addon(self):
+        """
+        Returns True if the customer has an active AI addon subscription.
+        """
+        subscription = self.active_subscription
+        return subscription.ai_addon_active if subscription else False
 
 
 class Subscription(models.Model):

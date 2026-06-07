@@ -10,6 +10,7 @@ from instances.subscription_api import (
     AddSeatsView,
     RemoveSeatsView,
     AddAIAddonView,
+    CancelAIAddonView,
     CancelSubscriptionView,
     BillingPortalView,
 )
@@ -27,6 +28,7 @@ urlpatterns = [
     path('subscription/add-seats/', AddSeatsView.as_view(), name='add-seats'),
     path('subscription/remove-seats/', RemoveSeatsView.as_view(), name='remove-seats'),
     path('subscription/add-ai-addon/', AddAIAddonView.as_view(), name='add-ai-addon'),
+    path('subscription/cancel-ai-addon/', CancelAIAddonView.as_view(), name='cancel-ai-addon'),
     path('subscription/cancel/', CancelSubscriptionView.as_view(), name='cancel'),
     path('subscription/portal-url/', BillingPortalView.as_view(), name='portal-url'),
 ]

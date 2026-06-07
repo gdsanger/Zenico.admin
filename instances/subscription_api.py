@@ -26,6 +26,7 @@ from core.services.stripe import (
 )
 from core.services.audit import AuditService, AuditAction
 from core.services.mail import MailService
+from billing.stripe_helpers import _cancel_ai_addon_stripe
 
 logger = logging.getLogger(__name__)
 
@@ -345,6 +346,9 @@ def _create_ai_addon_checkout(instance):
         instance.ai_addon_active = True
         instance.save(update_fields=['ai_addon_active', 'updated_at'])
 
+        customer.ai_addon_cancelled_at = None
+        customer.save(update_fields=['ai_addon_cancelled_at', 'updated_at'])
+
         # Return success URL
         return f'https://{instance.fqdn}/subscription?ai_addon=added'
 
@@ -632,6 +636,61 @@ class AddAIAddonView(APIView):
             return Response(
                 {'error': str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+
+class CancelAIAddonView(APIView):
+    """
+    POST /api/instance/subscription/cancel-ai-addon/
+
+    KI-Addon zum Periodenende kündigen.
+
+    Response:
+    {
+        "success": true,
+        "ai_addon_ends_at": "2026-07-01"
+    }
+    """
+
+    authentication_classes = [ApiKeyAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        instance = request.user
+        customer = instance.customer
+
+        if not customer.has_ai_addon:
+            return Response(
+                {'error': 'KI-Addon ist nicht aktiv.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ends_at_str = _cancel_ai_addon_stripe(instance)
+            ends_at = date.fromisoformat(ends_at_str)
+
+            customer.ai_addon_cancelled_at = ends_at
+            customer.save(update_fields=['ai_addon_cancelled_at', 'updated_at'])
+
+            AuditService.log(
+                action='subscription.ai_addon_cancelled',
+                resource_type='Instance',
+                resource_id=str(instance.id),
+                customer=customer,
+                instance_id=instance.id,
+                after={'ai_addon_ends_at': ends_at_str},
+                note=f'KI-Addon scheduled for cancellation on {ends_at_str}',
+            )
+
+            return Response({
+                'success': True,
+                'ai_addon_ends_at': ends_at_str,
+            })
+        except Exception as e:
+            logger.exception(f'Failed to cancel AI addon for {instance.fqdn}: {e}')
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
