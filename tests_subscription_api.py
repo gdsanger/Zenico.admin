@@ -338,6 +338,49 @@ class SubscriptionAPITestCase(TestCase):
         self.assertEqual(phases[1]['items'][0]['quantity'], 3)
         self.assertEqual(phases[1]['items'][1]['quantity'], 1)
 
+    def test_build_schedule_phases_with_none_nickname(self):
+        """Test schedule phase builder handles None nickname without error."""
+        period_end = 1_700_000_000
+        stripe_sub = {
+            'current_period_end': period_end,
+            'items': {
+                'data': [
+                    {
+                        'price': {'id': 'price_user', 'nickname': None},
+                        'quantity': 5,
+                    },
+                    {
+                        'price': {'id': 'price_instance', 'nickname': 'Instance Fee'},
+                        'quantity': 1,
+                    },
+                ]
+            },
+        }
+        schedule = {
+            'phases': [
+                {
+                    'start_date': period_end - 2_592_000,
+                    'end_date': period_end,
+                    'items': [
+                        {'price': 'price_user', 'quantity': 5},
+                        {'price': 'price_instance', 'quantity': 1},
+                    ],
+                }
+            ]
+        }
+
+        # This should not raise AttributeError
+        phases = _build_schedule_phases_for_seat_reduction(
+            schedule=schedule,
+            stripe_sub=stripe_sub,
+            new_seats=3,
+        )
+
+        self.assertEqual(len(phases), 2)
+        # Since nickname is None, it won't match "user", so quantity stays as is
+        self.assertEqual(phases[1]['items'][0]['quantity'], 5)
+        self.assertEqual(phases[1]['items'][1]['quantity'], 1)
+
     def test_build_schedule_phases_for_seat_reduction_updates_existing_future_phase(self):
         """Test schedule phase builder updates an existing future phase."""
         period_end = 1_700_000_000
