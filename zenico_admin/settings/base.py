@@ -23,6 +23,9 @@ DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',') if os.getenv('ALLOWED_HOSTS') else []
 
+# Token for the internal zenico-provisioner agent (Authorization: Bearer <token>)
+PROVISIONING_AGENT_TOKEN = os.getenv('PROVISIONING_AGENT_TOKEN', '')
+
 
 # Application definition
 

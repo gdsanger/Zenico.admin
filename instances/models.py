@@ -54,6 +54,7 @@ class Instance(models.Model):
         ('active', 'Active'),
         ('suspended', 'Suspended'),
         ('deprovisioned', 'Deprovisioned'),
+        ('failed', 'Failed'),
     ]
     @property
     def is_authenticated(self):
@@ -189,6 +190,24 @@ class Instance(models.Model):
         blank=True,
         verbose_name='missing feature',
         help_text='Specific feature that was missing (if reason=missing_feature)'
+    )
+    claimed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='claimed at',
+        help_text='Zeitpunkt, an dem der Provisioning-Agent diese Instanz übernommen hat'
+    )
+    provisioning_error = models.TextField(
+        blank=True,
+        verbose_name='provisioning error',
+        help_text='Letzte Fehlermeldung, falls status=failed'
+    )
+    image_tag = models.CharField(
+        max_length=50,
+        default='latest',
+        blank=True,
+        verbose_name='image tag',
+        help_text='Ziel-Docker-Image-Tag, der bei der Bereitstellung deployed werden soll'
     )
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='created at')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='updated at')
