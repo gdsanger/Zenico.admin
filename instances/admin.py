@@ -12,6 +12,7 @@ class InstanceAdmin(admin.ModelAdmin):
         'slug',
         'is_master',
         'status',
+        'claimed_at',
         'user_seats',
         'ai_addon_active',
         'version',
@@ -29,6 +30,7 @@ class InstanceAdmin(admin.ModelAdmin):
     readonly_fields = [
         'id',
         'api_key',
+        'claimed_at',
         'created_at',
         'updated_at',
         'fqdn',
@@ -59,6 +61,7 @@ class InstanceAdmin(admin.ModelAdmin):
                 'db_name',
                 'db_user',
                 'django_secret_key',
+                'image_tag',
                 'version',
             ]
         }),
@@ -71,6 +74,8 @@ class InstanceAdmin(admin.ModelAdmin):
         ('Health & Monitoring', {
             'fields': [
                 'provisioned_at',
+                'claimed_at',
+                'provisioning_error',
                 'last_health_check',
                 'health_check_ok',
                 'last_heartbeat',

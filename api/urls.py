@@ -9,6 +9,12 @@ Rate limiting and CORS are applied.
 from django.urls import path, include
 from crm.api import ContactCreateAPIView, EducationDiscountAPIView
 from newsletter.api import SubscribeAPIView, ConfirmAPIView, UnsubscribeAPIView
+from instances.provisioning_api import (
+    PendingInstancesView,
+    ClaimInstanceView,
+    CompleteInstanceView,
+    FailInstanceView,
+)
 
 app_name = 'api'
 
@@ -24,6 +30,12 @@ urlpatterns = [
 
     # Instance API (requires API key authentication)
     path('instance/', include('instances.urls')),
+
+    # Provisioning Agent API (requires PROVISIONING_AGENT_TOKEN bearer token)
+    path('instances/pending/', PendingInstancesView.as_view(), name='provisioning-pending'),
+    path('instances/<uuid:instance_id>/claim/', ClaimInstanceView.as_view(), name='provisioning-claim'),
+    path('instances/<uuid:instance_id>/complete/', CompleteInstanceView.as_view(), name='provisioning-complete'),
+    path('instances/<uuid:instance_id>/fail/', FailInstanceView.as_view(), name='provisioning-fail'),
 
     # AI Proxy API (requires API key authentication)
     path('ai/', include('ai.urls')),
