@@ -1,0 +1,11 @@
+{
+  "hasTrustDialogAccepted": true,
+  "permissions": {
+    "allow": [
+      "Read",
+      "Edit",
+      "Write",
+      "Bash(git*)"
+    ]
+  }
+}
