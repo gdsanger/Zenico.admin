@@ -9,6 +9,7 @@ Rate limiting and CORS are applied.
 from django.urls import path, include
 from crm.api import ContactCreateAPIView, EducationDiscountAPIView
 from newsletter.api import SubscribeAPIView, ConfirmAPIView, UnsubscribeAPIView
+from orders.api import OrderCreateAPIView
 from instances.provisioning_api import (
     PendingInstancesView,
     ClaimInstanceView,
@@ -22,6 +23,9 @@ urlpatterns = [
     # CRM
     path('contacts/', ContactCreateAPIView.as_view(), name='contact-create'),
     path('education-discount/', EducationDiscountAPIView.as_view(), name='education-discount'),
+
+    # Orders (public — Zenico.web)
+    path('orders/', OrderCreateAPIView.as_view(), name='order-create'),
 
     # Newsletter
     path('newsletter/subscribe/', SubscribeAPIView.as_view(), name='newsletter-subscribe'),

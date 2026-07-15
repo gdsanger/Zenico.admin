@@ -62,6 +62,9 @@ class AuditAction:
     STRIPE_WEBHOOK_PROCESSED = "stripe.webhook_processed"
     STRIPE_WEBHOOK_FAILED = "stripe.webhook_failed"
 
+    # Orders
+    ORDER_CREATED = "order.created"
+
     # CRM
     CONTACT_CREATED = "contact.created"
     CONTACT_UPDATED = "contact.updated"
