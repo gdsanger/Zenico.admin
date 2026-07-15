@@ -18,8 +18,6 @@ from instances.models import Instance, InstanceHeartbeat, AITokenUsage, get_week
 from ai.models import AITokenBudget
 from core.services.audit import AuditService, AuditAction
 from datetime import timezone as dt_timezone
-from ai.models import AIAgent, AITokenBudget
-from ai.agent_service import AgentService
 
 logger = logging.getLogger(__name__)
 
@@ -320,75 +318,3 @@ class AIAgentListView(APIView):
             }
             for agent in agents
         ], status=status.HTTP_200_OK)
-
-class AICompleteView(APIView):
-    """
-    POST /api/instance/ai/complete/
-    Authorization: Api-Key {key}
-
-    Request:
-    {
-        "agent": "project-status-report",
-        "input": "Task-Titel und Beschreibung..."
-    }
-
-    Response:
-    {
-        "text": "KI-Antwort...",
-        "from_cache": false,
-        "tokens_remaining": 156800
-    }
-    """
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        instance   = request.user
-        agent_name = request.data.get('agent')
-        input_text = request.data.get('input', '')
-
-        if not agent_name:
-            return Response(
-                {'error': 'agent ist erforderlich.'},
-                status=400
-            )
-
-        # Budget prüfen
-        budget, _ = AITokenBudget.objects.get_or_create(
-            instance=instance
-        )
-        budget._reset_week_if_needed()
-
-        if budget.is_exhausted:
-            return Response(
-                {
-                    'error':            'Wöchentliches Token-Budget erschöpft.',
-                    'tokens_remaining': 0,
-                },
-                status=429
-            )
-
-        # Agent ausführen
-        try:
-            service = AgentService()
-            text, from_cache = service.execute(
-                agent_name = agent_name,
-                input_text = input_text,
-                instance   = instance,
-            )
-            budget.refresh_from_db()
-            return Response({
-                'text':             text,
-                'from_cache':       from_cache,
-                'tokens_remaining': budget.tokens_remaining,
-            })
-
-        except AIAgent.DoesNotExist:
-            return Response(
-                {'error': f'Agent "{agent_name}" nicht gefunden.'},
-                status=404
-            )
-        except Exception as e:
-            return Response(
-                {'error': str(e)},
-                status=500
-            )

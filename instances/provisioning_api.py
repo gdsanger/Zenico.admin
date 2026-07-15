@@ -22,6 +22,7 @@ def _pending_payload(instance):
     return {
         'id': str(instance.id),
         'slug': instance.slug,
+        'customer_id': str(instance.customer.id),
         'customer_slug': instance.customer.slug,
         'fqdn': instance.fqdn,
         'image_tag': instance.image_tag,
