@@ -1,0 +1,44 @@
+{% extends "mail/base.html" %}
+
+{% block content %}
+<h1 style="color:#D9534F;font-size:24px;margin:0 0 20px 0;font-family:Arial,Helvetica,sans-serif;">
+  ⚠️ Bestellung fehlgeschlagen nach Zahlung
+</h1>
+
+<p style="margin:0 0 15px 0;">
+  Eine Bestellung konnte nach erfolgreicher Zahlung <strong>nicht</strong> in einen
+  Kunden überführt werden. Das Geld ist bereits geflossen — bitte manuell prüfen.
+</p>
+
+<table style="margin:0 0 15px 0;border-collapse:collapse;width:100%;">
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;width:30%;">Order-ID</td>
+    <td style="padding:8px;border:1px solid #ddd;">{{ order.id }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;">Firma</td>
+    <td style="padding:8px;border:1px solid #ddd;">{{ order.company_name }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;">Slug</td>
+    <td style="padding:8px;border:1px solid #ddd;">{{ order.slug }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;">Kontakt</td>
+    <td style="padding:8px;border:1px solid #ddd;">{{ order.contact_email }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;">Checkout-Session</td>
+    <td style="padding:8px;border:1px solid #ddd;">{{ order.stripe_checkout_session_id }}</td>
+  </tr>
+  <tr>
+    <td style="padding:8px;border:1px solid #ddd;background:#f8f9fa;font-weight:bold;">Grund</td>
+    <td style="padding:8px;border:1px solid #ddd;color:#D9534F;">{{ reason }}</td>
+  </tr>
+</table>
+
+<p style="margin:0 0 15px 0;">
+  <strong>Handlungsempfehlung:</strong> Slug-Vergabe prüfen, ggf. Rückerstattung
+  veranlassen oder Kunde mit alternativem Slug manuell anlegen.
+</p>
+{% endblock %}

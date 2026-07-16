@@ -1,0 +1,18 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+⚠️ Bestellung fehlgeschlagen nach Zahlung
+
+Eine Bestellung konnte nach erfolgreicher Zahlung NICHT in einen Kunden überführt
+werden. Das Geld ist bereits geflossen — bitte manuell prüfen.
+
+Order-ID: {{ order.id }}
+Firma: {{ order.company_name }}
+Slug: {{ order.slug }}
+Kontakt: {{ order.contact_email }}
+Checkout-Session: {{ order.stripe_checkout_session_id }}
+Grund: {{ reason }}
+
+Handlungsempfehlung: Slug-Vergabe prüfen, ggf. Rückerstattung veranlassen oder
+Kunde mit alternativem Slug manuell anlegen.
+{% endblock %}

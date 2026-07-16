@@ -7,13 +7,18 @@ via StripeEvent model, and dispatches to appropriate handler methods.
 
 import logging
 from typing import Optional
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.utils import timezone
 
 import stripe
 
 from billing.models import StripeEvent
 from customers.models import Customer, Subscription
+from customers.services import CustomerService
 from instances.models import Instance
+from orders.models import Order
 from core.services.audit import AuditService, AuditAction
 from core.services.stripe import StripeService
 from core.services.mail import MailService
@@ -167,6 +172,8 @@ class StripeWebhookHandler:
 
         # Map event types to handler methods
         handlers = {
+            'checkout.session.completed': cls._handle_checkout_session_completed,
+            'checkout.session.expired': cls._handle_checkout_session_expired,
             'customer.subscription.created': cls._handle_subscription_created,
             'customer.subscription.updated': cls._handle_subscription_updated,
             'customer.subscription.deleted': cls._handle_subscription_deleted,
@@ -185,6 +192,201 @@ class StripeWebhookHandler:
             handler(event, db_event)
         else:
             logger.info(f'No handler for event type {event_type}, skipping')
+
+    @staticmethod
+    def _find_order(session: dict) -> Optional[Order]:
+        """
+        Locate the local Order for a Stripe Checkout Session.
+
+        Sucht zuerst über die `metadata.order_id`, dann als Fallback über die
+        gespeicherte `stripe_checkout_session_id`. Gibt None zurück, wenn keine
+        Order gefunden wird — die Session gehört dann zu einem anderen Flow
+        (z. B. Seat-Add-ons aus der Instance-Subscription-API).
+        """
+        metadata = session.get('metadata') or {}
+        order_id = metadata.get('order_id')
+
+        order = None
+        if order_id:
+            order = Order.objects.filter(id=order_id).first()
+
+        if order is None and session.get('id'):
+            order = Order.objects.filter(
+                stripe_checkout_session_id=session['id']
+            ).first()
+
+        return order
+
+    @classmethod
+    def _handle_checkout_session_completed(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """
+        Handle checkout.session.completed - Kunde nach erfolgreicher Zahlung anlegen.
+
+        Legt Customer + Subscription + Master-Instanz (`status='provisioning'`)
+        über CustomerService.create_customer() an; die Master-Instanz wird
+        dadurch vom Provisioner beim nächsten Poll abgeholt. Idempotent gegen
+        Mehrfachzustellung; fremde Checkout-Sessions werden ignoriert.
+        """
+        session = event['data']['object']
+
+        order = cls._find_order(session)
+        if order is None:
+            logger.warning(
+                f'No order found for checkout session {session.get("id")}, ignoring '
+                f'(likely a foreign checkout session, e.g. seat add-on)'
+            )
+            return
+
+        # Idempotenz: bereits abgeschlossene Order nicht erneut verarbeiten.
+        if order.status == 'completed':
+            logger.info(f'Order {order.id} already completed, skipping duplicate checkout.session.completed')
+            return
+
+        stripe_customer_id = session.get('customer') or None
+        stripe_subscription_id = session.get('subscription') or None
+
+        # Slug-Kollision zum Zahlungszeitpunkt (Race seit Bestellung): Geld ist
+        # bereits geflossen — Order als failed markieren und Admin informieren,
+        # statt still einen halben Kunden anzulegen.
+        if Customer.objects.filter(slug=order.slug).exists():
+            cls._fail_order(
+                order,
+                db_event,
+                reason=f'Slug "{order.slug}" ist zum Zahlungszeitpunkt bereits vergeben (Race).',
+            )
+            return
+
+        try:
+            customer, subscription, master_instance = CustomerService.create_customer(
+                slug=order.slug,
+                company_name=order.company_name,
+                contact_name=order.contact_name,
+                contact_email=order.contact_email,
+                billing_email=order.billing_email,
+                plan=order.plan,
+                user_seats=order.user_seats,
+                instance_seats=1,
+                stripe_subscription_id=stripe_subscription_id or '',
+                ai_addon=order.ai_addon,
+                contact_phone=order.contact_phone,
+                billing_address=order.billing_address,
+                billing_city=order.billing_city,
+                billing_postal_code=order.billing_postal_code,
+                billing_country=order.billing_country,
+                vat_id=order.vat_id,
+                stripe_customer_id=stripe_customer_id,
+            )
+        except (IntegrityError, ValidationError) as exc:
+            # Kollision/Validierung schlug erst beim Anlegen zu (enger Race) —
+            # create_customer läuft in einer Transaktion, es bleibt kein
+            # halber Kunde zurück.
+            logger.exception(f'Failed to create customer for order {order.id}: {exc}')
+            cls._fail_order(
+                order,
+                db_event,
+                reason=f'Kundenanlage fehlgeschlagen (Slug "{order.slug}"): {exc}',
+            )
+            return
+
+        db_event.customer = customer
+        db_event.save()
+
+        order.status = 'completed'
+        order.save(update_fields=['status', 'updated_at'])
+
+        AuditService.log(
+            action='order.completed',
+            resource_type='Order',
+            resource_id=str(order.id),
+            customer=customer,
+            after={
+                'slug': customer.slug,
+                'stripe_customer_id': stripe_customer_id,
+                'stripe_subscription_id': stripe_subscription_id,
+            },
+            note=f'Order {order.id} completed via checkout.session.completed; customer and master instance provisioning',
+        )
+
+        logger.info(
+            f'Order {order.id} completed: created customer {customer.slug} '
+            f'with master instance {master_instance.slug} (provisioning)'
+        )
+
+        # Bestätigungsmail an den Kunden — Instanz wird bereitgestellt, URL folgt.
+        MailService.send_template(
+            to=order.contact_email,
+            template='order_confirmed',
+            context={
+                'contact_name': order.contact_name,
+                'company_name': order.company_name,
+                'slug': customer.slug,
+                'instance_url': f'https://{customer.slug}.zenico.app',
+            },
+            subject_override='Ihre Zenico-Bestellung ist bestätigt',
+        )
+
+    @classmethod
+    def _handle_checkout_session_expired(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """Handle checkout.session.expired - Order auf 'expired' setzen."""
+        session = event['data']['object']
+
+        order = cls._find_order(session)
+        if order is None:
+            logger.warning(
+                f'No order found for expired checkout session {session.get("id")}, ignoring'
+            )
+            return
+
+        # Nur offene Bestellungen ablaufen lassen (Idempotenz / kein Rückschritt
+        # aus einem Endzustand).
+        if order.status not in Order.OPEN_STATUSES:
+            logger.info(f'Order {order.id} in status {order.status}, ignoring checkout.session.expired')
+            return
+
+        order.status = 'expired'
+        order.save(update_fields=['status', 'updated_at'])
+
+        AuditService.log(
+            action='order.expired',
+            resource_type='Order',
+            resource_id=str(order.id),
+            after={'slug': order.slug, 'status': 'expired'},
+            note=f'Order {order.id} expired (checkout.session.expired)',
+        )
+
+        logger.info(f'Order {order.id} marked as expired')
+
+    @classmethod
+    def _fail_order(cls, order: Order, db_event: StripeEvent, reason: str) -> None:
+        """
+        Order auf 'failed' setzen und Admin benachrichtigen.
+
+        Wird gerufen, wenn nach erfolgreicher Zahlung kein Kunde angelegt werden
+        kann (z. B. Slug-Kollision). Das Geld ist bereits geflossen — der Fall
+        muss auffallen, nicht verschluckt werden.
+        """
+        order.status = 'failed'
+        order.save(update_fields=['status', 'updated_at'])
+
+        AuditService.log(
+            action='order.failed',
+            resource_type='Order',
+            resource_id=str(order.id),
+            after={'slug': order.slug, 'status': 'failed', 'reason': reason},
+            note=f'Order {order.id} failed after payment: {reason}',
+        )
+
+        logger.error(f'Order {order.id} failed after payment: {reason}')
+
+        MailService.send_template(
+            to=settings.ADMIN_NOTIFICATION_EMAIL,
+            template='admin_order_failed',
+            context={
+                'order': order,
+                'reason': reason,
+            },
+            subject_override=f'Bestellung fehlgeschlagen nach Zahlung: {order.company_name} ({order.slug})',
+        )
 
     @classmethod
     def _handle_subscription_created(cls, event: stripe.Event, db_event: StripeEvent) -> None:
