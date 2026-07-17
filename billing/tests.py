@@ -13,7 +13,7 @@ class StripeEventModelTest(TestCase):
     def setUp(self):
         """Set up test data."""
         # Use existing plan from data migration
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
         # Create a customer
         self.customer = Customer.objects.create(
@@ -308,7 +308,7 @@ class InvoiceModelTest(TestCase):
     def setUp(self):
         """Set up test data."""
         # Use existing plan from data migration
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
         # Create a customer
         self.customer = Customer.objects.create(
@@ -688,8 +688,8 @@ class StripeWebhookHandlerTests(TestCase):
 
         # Get or create plan
         plan, _ = Plan.objects.get_or_create(
-            name='starter',
-            defaults={'display_name': 'Starter Plan'}
+            name='standard',
+            defaults={'display_name': 'Standard Plan'}
         )
 
         # Create subscription

@@ -229,7 +229,7 @@ Phone-home endpoint (updated with budget data).
 **Response includes:**
 ```json
 {
-  "plan": "starter",
+  "plan": "standard",
   "user_seats": 5,
   "instance_status": "active",
   "ai_addon": true,

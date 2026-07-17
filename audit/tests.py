@@ -10,12 +10,12 @@ class AuditLogModelTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        # Use the existing 'starter' plan from data migration or create if it doesn't exist
-        self.plan = Plan.objects.filter(name='starter').first()
+        # Use the existing 'standard' plan from data migration or create if it doesn't exist
+        self.plan = Plan.objects.filter(name='standard').first()
         if not self.plan:
             self.plan = Plan.objects.create(
-                name='starter',
-                display_name='Test Starter Plan'
+                name='standard',
+                display_name='Test Standard Plan'
             )
 
         # Create a test customer

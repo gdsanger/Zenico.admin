@@ -20,8 +20,7 @@ class Plan(models.Model):
     """
 
     PLAN_CHOICES = [
-        ('starter', 'Starter'),
-        ('professional', 'Professional'),
+        ('standard', 'Standard'),
         ('enterprise', 'Enterprise'),
     ]
 
