@@ -74,6 +74,11 @@ class StripePlanWiringView(TemplateView):
             products = StripeImportService.fetch_products()
             all_prices = StripeImportService.fetch_all_prices()
 
+            # Pre-format the display label (handles cents-to-euro conversion and
+            # tiered prices) so the template doesn't need to touch unit_amount directly.
+            for price in all_prices:
+                price['display'] = StripeImportService.format_price_display(price)
+
             context['products'] = products
             context['all_prices'] = all_prices
 
@@ -216,7 +221,7 @@ def stripe_fetch_prices(request):
                 'id': price['id'],
                 'product_id': price['product_id'],
                 'display': StripeImportService.format_price_display(price),
-                'amount': price.get('unit_amount', 0) / 100,
+                'amount': None if price.get('billing_scheme') == 'tiered' else price.get('unit_amount', 0) / 100,
                 'currency': price.get('currency', 'eur'),
                 'interval': price.get('recurring', {}).get('interval', ''),
             })
@@ -252,38 +257,35 @@ def stripe_plan_save(request):
         plan = Plan.objects.get(pk=plan_id)
 
         # Get Stripe IDs from form
+        # Note: stripe_price_id_instance is intentionally not handled here anymore —
+        # the instance-seat pricing concept is retired from the wiring UI (see #893).
+        # The field on the model is left untouched.
         stripe_product_id = request.POST.get('stripe_product_id', '').strip()
         stripe_price_id_user = request.POST.get('stripe_price_id_user', '').strip()
-        stripe_price_id_instance = request.POST.get('stripe_price_id_instance', '').strip()
         stripe_price_id_ai = request.POST.get('stripe_price_id_ai', '').strip()
 
-        # Validate that prices belong to the product
-        if stripe_product_id:
-            if stripe_price_id_user:
-                if not StripeImportService.validate_price_product(stripe_price_id_user, stripe_product_id):
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'User price does not belong to selected product'
-                    }, status=400)
+        # Stripe product is the product behind the user-license price. It must be
+        # selected whenever a price is being wired, so prices can't be saved unchecked.
+        if (stripe_price_id_user or stripe_price_id_ai) and not stripe_product_id:
+            return JsonResponse({
+                'success': False,
+                'error': 'Stripe-Produkt ist erforderlich, wenn Preise hinterlegt werden'
+            }, status=400)
 
-            if stripe_price_id_instance:
-                if not StripeImportService.validate_price_product(stripe_price_id_instance, stripe_product_id):
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'Instance price does not belong to selected product'
-                    }, status=400)
+        # The user-license price must belong to the selected product.
+        if stripe_price_id_user and stripe_product_id:
+            if not StripeImportService.validate_price_product(stripe_price_id_user, stripe_product_id):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'User-Preis gehört nicht zum ausgewählten Produkt'
+                }, status=400)
 
-            if stripe_price_id_ai:
-                if not StripeImportService.validate_price_product(stripe_price_id_ai, stripe_product_id):
-                    return JsonResponse({
-                        'success': False,
-                        'error': 'AI addon price does not belong to selected product'
-                    }, status=400)
+        # The AI addon lives in its own Stripe product, so it is intentionally
+        # NOT validated against stripe_product_id (the user-license product).
 
         # Update plan
         plan.stripe_product_id = stripe_product_id
         plan.stripe_price_id_user = stripe_price_id_user
-        plan.stripe_price_id_instance = stripe_price_id_instance
         plan.stripe_price_id_ai = stripe_price_id_ai
         plan.save()
 

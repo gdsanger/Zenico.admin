@@ -35,7 +35,7 @@
 
                     <div class="mb-3">
                         <label class="form-label">Stripe Produkt</label>
-                        <select name="stripe_product_id" class="form-select" id="product-{{ plan.id }}">
+                        <select name="stripe_product_id" class="form-select product-select" id="product-{{ plan.id }}">
                             <option value="">-- Bitte wählen --</option>
                             {% for product in products %}
                             <option value="{{ product.id }}" {% if product.id == plan.stripe_product_id %}selected{% endif %}>
@@ -43,27 +43,20 @@
                             </option>
                             {% endfor %}
                         </select>
+                        <div class="form-text">
+                            Produkt der User-Lizenz. Wird verwendet, um den Preis „Preis User" zu validieren.
+                            Das KI-Addon liegt in Stripe als eigenes Produkt vor und ist davon unabhängig —
+                            das Produkt-Feld gilt nicht für „Preis KI-Addon".
+                        </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label">Preis User</label>
-                        <select name="stripe_price_id_user" class="form-select">
+                        <select name="stripe_price_id_user" class="form-select user-price-select">
                             <option value="">-- Bitte wählen --</option>
                             {% for price in all_prices %}
                             <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_user %}selected{% endif %}>
-                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Preis Instanz</label>
-                        <select name="stripe_price_id_instance" class="form-select">
-                            <option value="">-- Bitte wählen --</option>
-                            {% for price in all_prices %}
-                            <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_instance %}selected{% endif %}>
-                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
+                                {{ price.display }}
                             </option>
                             {% endfor %}
                         </select>
@@ -75,7 +68,7 @@
                             <option value="">-- Bitte wählen --</option>
                             {% for price in all_prices %}
                             <option value="{{ price.id }}" data-product="{{ price.product_id }}" {% if price.id == plan.stripe_price_id_ai %}selected{% endif %}>
-                                {{ price.nickname|default:price.id }} — {{ price.unit_amount|floatformat:2 }}€/{% if price.recurring %}{{ price.recurring.interval }}{% endif %} ({{ price.id }})
+                                {{ price.display }}
                             </option>
                             {% endfor %}
                         </select>
@@ -138,5 +131,32 @@ async function savePlan(event, planId) {
 
     return false;
 }
+
+// Filter "Preis User" options down to the selected product's prices. The AI
+// addon lives in its own Stripe product, so its dropdown is left unfiltered.
+function filterUserPriceOptions(productSelect) {
+    const form = productSelect.closest('form');
+    const userPriceSelect = form.querySelector('.user-price-select');
+    if (!userPriceSelect) {
+        return;
+    }
+
+    const productId = productSelect.value;
+    Array.from(userPriceSelect.options).forEach((option) => {
+        if (!option.value) {
+            return;
+        }
+        option.hidden = productId !== '' && option.dataset.product !== productId;
+    });
+
+    if (userPriceSelect.selectedOptions[0] && userPriceSelect.selectedOptions[0].hidden) {
+        userPriceSelect.value = '';
+    }
+}
+
+document.querySelectorAll('.product-select').forEach((select) => {
+    filterUserPriceOptions(select);
+    select.addEventListener('change', () => filterUserPriceOptions(select));
+});
 </script>
 {% endblock %}
