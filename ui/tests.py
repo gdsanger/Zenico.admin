@@ -1,6 +1,8 @@
+from unittest.mock import patch
 from django.test import TestCase, Client
 from django.urls import reverse
 from accounts.models import AdminUser
+from customers.models import Plan
 
 
 class UIViewsTestCase(TestCase):
@@ -182,4 +184,116 @@ class DashboardEndpointsTestCase(TestCase):
         response = self.client.get(reverse('ui:dashboard_activity'))
         self.assertEqual(response.status_code, 302)
         self.assertIn('/login/', response.url)
+
+
+class StripePlanSaveTestCase(TestCase):
+    """Test the plan-to-Stripe wiring save endpoint."""
+
+    def setUp(self):
+        self.user = AdminUser.objects.create_superuser(
+            email='super@zenico.app',
+            password='testpass123',
+            display_name='Super Admin',
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+        self.plan, _ = Plan.objects.update_or_create(name='starter', defaults={'display_name': 'Starter'})
+
+    def test_price_without_product_is_rejected(self):
+        """A price cannot be wired without picking the Stripe product first."""
+        response = self.client.post(reverse('ui:stripe_plan_save'), {
+            'plan_id': str(self.plan.id),
+            'stripe_product_id': '',
+            'stripe_price_id_user': 'price_user_123',
+            'stripe_price_id_ai': '',
+        })
+        data = response.json()
+        self.assertFalse(data['success'])
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.stripe_price_id_user, '')
+
+    @patch('ui.views.settings.StripeImportService.validate_price_product')
+    def test_user_price_validated_against_product(self, mock_validate):
+        """The user-license price must belong to the selected product."""
+        mock_validate.return_value = False
+        response = self.client.post(reverse('ui:stripe_plan_save'), {
+            'plan_id': str(self.plan.id),
+            'stripe_product_id': 'prod_user_license',
+            'stripe_price_id_user': 'price_user_123',
+            'stripe_price_id_ai': '',
+        })
+        data = response.json()
+        self.assertFalse(data['success'])
+        mock_validate.assert_called_once_with('price_user_123', 'prod_user_license')
+
+    @patch('ui.views.settings.StripeImportService.validate_price_product')
+    def test_ai_addon_price_not_validated_against_product(self, mock_validate):
+        """The AI addon lives in its own Stripe product and is saved without a product match check."""
+        mock_validate.return_value = True
+        response = self.client.post(reverse('ui:stripe_plan_save'), {
+            'plan_id': str(self.plan.id),
+            'stripe_product_id': 'prod_user_license',
+            'stripe_price_id_user': 'price_user_123',
+            'stripe_price_id_ai': 'price_ai_from_other_product',
+        })
+        data = response.json()
+        self.assertTrue(data['success'])
+        mock_validate.assert_called_once_with('price_user_123', 'prod_user_license')
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.stripe_price_id_ai, 'price_ai_from_other_product')
+
+    def test_save_does_not_touch_instance_price_field(self):
+        """The retired instance-price field is left untouched by the wiring form."""
+        self.plan.stripe_price_id_instance = 'price_instance_legacy'
+        self.plan.save()
+
+        response = self.client.post(reverse('ui:stripe_plan_save'), {
+            'plan_id': str(self.plan.id),
+            'stripe_product_id': '',
+            'stripe_price_id_user': '',
+            'stripe_price_id_ai': '',
+        })
+        self.assertTrue(response.json()['success'])
+        self.plan.refresh_from_db()
+        self.assertEqual(self.plan.stripe_price_id_instance, 'price_instance_legacy')
+
+
+class DashboardUnwiredPlansTestCase(TestCase):
+    """Test the dashboard's unwired-plans detection."""
+
+    def setUp(self):
+        self.user = AdminUser.objects.create_superuser(
+            email='super2@zenico.app',
+            password='testpass123',
+            display_name='Super Admin',
+        )
+        self.client = Client()
+        self.client.force_login(self.user)
+
+    def test_plan_without_instance_price_counts_as_wired(self):
+        """A fully wired plan (product + user price) is not flagged, even without an instance price."""
+        Plan.objects.all().delete()
+        Plan.objects.create(
+            name='starter',
+            display_name='Starter',
+            stripe_product_id='prod_123',
+            stripe_price_id_user='price_user_123',
+            ai_addon_available=False,
+        )
+        response = self.client.get(reverse('ui:dashboard'))
+        self.assertEqual(response.context['unwired_plans_count'], 0)
+
+    def test_plan_with_ai_addon_available_requires_ai_price(self):
+        """When a plan offers the AI addon, a missing AI price still counts as unwired."""
+        Plan.objects.all().delete()
+        Plan.objects.create(
+            name='professional',
+            display_name='Professional',
+            stripe_product_id='prod_123',
+            stripe_price_id_user='price_user_123',
+            ai_addon_available=True,
+            stripe_price_id_ai='',
+        )
+        response = self.client.get(reverse('ui:dashboard'))
+        self.assertEqual(response.context['unwired_plans_count'], 1)
 

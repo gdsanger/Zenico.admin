@@ -84,7 +84,8 @@ class StripeImportService:
             prices = stripe_api.Price.list(
                 product=product_id,
                 active=True,
-                limit=100
+                limit=100,
+                expand=['data.tiers'],
             )
 
             result = []
@@ -94,6 +95,8 @@ class StripeImportService:
                     'unit_amount': price.unit_amount or 0,
                     'currency': price.currency,
                     'nickname': price.nickname or '',
+                    'billing_scheme': price.billing_scheme,
+                    'tiers': StripeImportService._extract_tiers(price),
                 }
 
                 # Include recurring information if present
@@ -137,7 +140,7 @@ class StripeImportService:
         """
         try:
             stripe_api = get_stripe()
-            prices = stripe_api.Price.list(active=True, limit=100)
+            prices = stripe_api.Price.list(active=True, limit=100, expand=['data.tiers'])
 
             result = []
             for price in prices.auto_paging_iter():
@@ -147,6 +150,8 @@ class StripeImportService:
                     'unit_amount': price.unit_amount or 0,
                     'currency': price.currency,
                     'nickname': price.nickname or '',
+                    'billing_scheme': price.billing_scheme,
+                    'tiers': StripeImportService._extract_tiers(price),
                 }
 
                 # Include recurring information if present
@@ -177,6 +182,25 @@ class StripeImportService:
             raise
 
     @staticmethod
+    def _extract_tiers(price) -> Optional[List[Dict]]:
+        """
+        Extract tier data (unit_amount, up_to) from a Stripe price object.
+
+        Returns None for non-tiered prices, or if tiers weren't expanded.
+        """
+        if price.billing_scheme != 'tiered':
+            return None
+
+        tiers = getattr(price, 'tiers', None)
+        if not tiers:
+            return None
+
+        return [
+            {'unit_amount': tier.unit_amount, 'up_to': tier.up_to}
+            for tier in tiers
+        ]
+
+    @staticmethod
     def format_price_display(price: Dict) -> str:
         """
         Format a price dict for display in UI dropdowns.
@@ -186,8 +210,8 @@ class StripeImportService:
 
         Returns:
             Formatted string like: "User License — 19.00€/month (price_abc123)"
+            or, for tiered prices: "User License — Staffelpreis (ab 12.00€)/month (price_abc123)"
         """
-        amount = price.get('unit_amount', 0) / 100
         currency = price.get('currency', 'eur').upper()
         nickname = price.get('nickname', '')
         price_id = price.get('id', '')
@@ -197,8 +221,19 @@ class StripeImportService:
         if price.get('recurring'):
             interval = f"/{price['recurring']['interval']}"
 
+        if price.get('billing_scheme') == 'tiered':
+            tiers = price.get('tiers') or []
+            tier_amounts = [t['unit_amount'] for t in tiers if t.get('unit_amount') is not None]
+            if tier_amounts:
+                amount_str = f"Staffelpreis (ab {min(tier_amounts) / 100:.2f}{currency})"
+            else:
+                amount_str = "Staffelpreis"
+        else:
+            amount = price.get('unit_amount', 0) / 100
+            amount_str = f"{amount:.2f}{currency}"
+
         # Build display string
-        display = f"{nickname} — {amount:.2f}{currency}{interval} ({price_id})" if nickname else f"{amount:.2f}{currency}{interval} ({price_id})"
+        display = f"{nickname} — {amount_str}{interval} ({price_id})" if nickname else f"{amount_str}{interval} ({price_id})"
 
         return display
 

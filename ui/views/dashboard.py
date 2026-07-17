@@ -32,11 +32,13 @@ class DashboardView(TemplateView):
         if self.request.user.role == 'superadmin':
             config = StripeConfig.get()
 
-            # Count unwired plans
+            # Count unwired plans. Instance pricing is retired (see #893) and no
+            # longer part of the wiring requirement. The AI addon price is only
+            # required for plans that actually offer it.
             unwired_plans = Plan.objects.filter(
                 Q(stripe_product_id='') |
                 Q(stripe_price_id_user='') |
-                Q(stripe_price_id_instance='')
+                Q(ai_addon_available=True, stripe_price_id_ai='')
             ).count()
 
             context['stripe_config_incomplete'] = not config.is_configured or unwired_plans > 0
