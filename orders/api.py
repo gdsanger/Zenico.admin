@@ -148,3 +148,53 @@ class OrderCreateAPIView(APIView):
             {'order_id': str(order.id), 'checkout_url': checkout_url},
             status=status.HTTP_201_CREATED,
         )
+
+
+@method_decorator(ratelimit(key='ip', rate='30/m', method='GET', block=True), name='dispatch')
+class CheckSlugAPIView(APIView):
+    """
+    GET /api/orders/check-slug/?slug=acme
+
+    Öffentliche Live-Prüfung für die Bestellstrecke auf der Homepage: Ist der
+    Wunsch-Slug (= künftige Subdomain ``{slug}.zenico.app``) frei?
+
+    Ein Slug gilt als vergeben, wenn ein ``Customer`` ihn nutzt oder eine offene
+    Order (``pending_payment``/``paid``) ihn reserviert. Beim Tippen gepollt,
+    daher großzügigeres Rate-Limit (30/min pro IP).
+
+    Response 200: {"available": true|false, "message": "<deutsche Meldung>"}
+
+    Die Antwort ist bewusst knapp — sie verrät nur frei/nicht frei, nicht, ob
+    ein Kunde oder eine Order den Slug hält.
+    """
+
+    def get(self, request):
+        slug = str(request.GET.get('slug', '')).strip().lower()
+
+        if not slug:
+            return Response({
+                'available': False,
+                'message': 'Bitte gib einen Slug ein.',
+            })
+
+        if not SLUG_RE.match(slug):
+            return Response({
+                'available': False,
+                'message': 'Slug muss 2-10 Zeichen lang sein (nur a-z und 0-9).',
+            })
+
+        taken = (
+            Customer.objects.filter(slug=slug).exists()
+            or Order.objects.filter(slug=slug, status__in=Order.OPEN_STATUSES).exists()
+        )
+
+        if taken:
+            return Response({
+                'available': False,
+                'message': 'Dieser Slug ist bereits vergeben.',
+            })
+
+        return Response({
+            'available': True,
+            'message': 'Slug verfügbar ✓',
+        })
