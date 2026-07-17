@@ -297,7 +297,7 @@ class MailServiceTests(TestCase):
                         'contact_name': 'John Doe',
                         'company_name': 'Test Company',
                         'slug': 'testco',
-                        'plan_name': 'Professional',
+                        'plan_name': 'Standard',
                         'user_seats': 10,
                         'instance_seats': 2,
                     },
@@ -376,9 +376,9 @@ class StripeServiceTests(TestCase):
         from customers.models import Plan
         # Use existing plan from migration or get_or_create to avoid unique constraint error
         self.plan, _ = Plan.objects.get_or_create(
-            name='professional',
+            name='standard',
             defaults={
-                'display_name': 'Professional Plan',
+                'display_name': 'Standard Plan',
                 'price_per_user': 19.00,
                 'price_per_instance': 5.00,
                 'price_ai_addon': 7.50,

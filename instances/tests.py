@@ -12,7 +12,7 @@ class InstanceModelTest(TestCase):
     def setUp(self):
         """Set up test data."""
         # Create a plan
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
         # Create a customer
         self.customer = Customer.objects.create(
@@ -415,7 +415,7 @@ class InstanceManagerTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             slug='testco',
             company_name='Test Company',
@@ -483,7 +483,7 @@ class SubscriptionSeatCalculationTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             slug='testco',
             company_name='Test Company',
@@ -649,7 +649,7 @@ class CustomerMasterInstanceTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             slug='testco',
             company_name='Test Company',
@@ -692,7 +692,7 @@ class UserLicenseModelTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             slug='testco',
             company_name='Test Company',

@@ -115,7 +115,7 @@ class DatabaseConstraintsTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         self.base_customer_data = {
             'slug': 'dbtest',
             'company_name': 'DB Test Company',
@@ -201,8 +201,8 @@ class DatabaseConstraintsTest(TestCase):
         # Plans are created via data migration, trying to create duplicate should fail
         with self.assertRaises(IntegrityError):
             Plan.objects.create(
-                name='starter',  # Already exists from migration
-                display_name='Duplicate Starter',
+                name='standard',  # Already exists from migration
+                display_name='Duplicate Standard',
             )
 
     def test_subscription_customer_foreign_key_protect(self):
@@ -309,7 +309,7 @@ class CustomerServiceIntegrationTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
     def test_create_customer_end_to_end_with_real_instances(self):
         """

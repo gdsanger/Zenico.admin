@@ -197,7 +197,7 @@ class StripePlanSaveTestCase(TestCase):
         )
         self.client = Client()
         self.client.force_login(self.user)
-        self.plan, _ = Plan.objects.update_or_create(name='starter', defaults={'display_name': 'Starter'})
+        self.plan, _ = Plan.objects.update_or_create(name='standard', defaults={'display_name': 'Standard'})
 
     def test_price_without_product_is_rejected(self):
         """A price cannot be wired without picking the Stripe product first."""
@@ -274,8 +274,8 @@ class DashboardUnwiredPlansTestCase(TestCase):
         """A fully wired plan (product + user price) is not flagged, even without an instance price."""
         Plan.objects.all().delete()
         Plan.objects.create(
-            name='starter',
-            display_name='Starter',
+            name='standard',
+            display_name='Standard',
             stripe_product_id='prod_123',
             stripe_price_id_user='price_user_123',
             ai_addon_available=False,
@@ -287,8 +287,8 @@ class DashboardUnwiredPlansTestCase(TestCase):
         """When a plan offers the AI addon, a missing AI price still counts as unwired."""
         Plan.objects.all().delete()
         Plan.objects.create(
-            name='professional',
-            display_name='Professional',
+            name='standard',
+            display_name='Standard',
             stripe_product_id='prod_123',
             stripe_price_id_user='price_user_123',
             ai_addon_available=True,

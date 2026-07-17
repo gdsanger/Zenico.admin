@@ -140,7 +140,7 @@ class AITokenBudgetTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             company_name='Test Company',
             slug='testco',
@@ -207,7 +207,7 @@ class AICompleteAPITest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             company_name='Test Company',
             slug='testco',
@@ -335,7 +335,7 @@ class AIRouterTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             company_name='Test Company',
             slug='testco',
@@ -400,7 +400,7 @@ class AgentServiceTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.customer = Customer.objects.create(
             company_name='Test Company',
             slug='testco',

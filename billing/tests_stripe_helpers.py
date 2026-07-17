@@ -16,9 +16,9 @@ class CancelAIAddonStripeTestCase(TestCase):
 
     def setUp(self):
         self.plan, _ = Plan.objects.get_or_create(
-            name='starter',
+            name='standard',
             defaults={
-                'display_name': 'Starter',
+                'display_name': 'Standard',
                 'stripe_price_id_ai': 'price_ai_test',
                 'is_active': True,
             },

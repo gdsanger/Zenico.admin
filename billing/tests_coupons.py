@@ -267,9 +267,9 @@ class CouponRedemptionModelTest(TestCase):
     def setUp(self):
         """Set up test data."""
         self.plan, _ = Plan.objects.get_or_create(
-            name='professional',
+            name='standard',
             defaults={
-                'display_name': 'Professional',
+                'display_name': 'Standard',
                 'price_per_user': Decimal('5.00'),
                 'price_per_instance': Decimal('30.00')
             }
@@ -340,9 +340,9 @@ class CouponServiceTest(TestCase):
     def setUp(self):
         """Set up test data."""
         self.plan, _ = Plan.objects.get_or_create(
-            name='professional',
+            name='standard',
             defaults={
-                'display_name': 'Professional',
+                'display_name': 'Standard',
                 'price_per_user': Decimal('5.00'),
                 'price_per_instance': Decimal('30.00')
             }

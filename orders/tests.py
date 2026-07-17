@@ -24,9 +24,9 @@ class OrderCreateAPITest(TestCase):
 
     def setUp(self):
         cache.clear()
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         if self.plan is None:
-            self.plan = Plan.objects.create(name='starter', display_name='Starter')
+            self.plan = Plan.objects.create(name='standard', display_name='Standard')
         self.plan.is_active = True
         self.plan.ai_addon_available = True
         self.plan.stripe_price_id_user = 'price_user_123'
@@ -35,7 +35,7 @@ class OrderCreateAPITest(TestCase):
         self.plan.save()
 
         self.valid_payload = {
-            'plan': 'starter',
+            'plan': 'standard',
             'user_seats': 5,
             'ai_addon': True,
             'slug': 'acme',
@@ -133,7 +133,7 @@ class OrderCreateAPITest(TestCase):
     # --- Validation ---
 
     def test_missing_required_fields_returns_400(self):
-        response = self._post({'plan': 'starter'})
+        response = self._post({'plan': 'standard'})
         self.assertEqual(response.status_code, 400)
         errors = response.json()['errors']
         for field in ['user_seats', 'slug', 'company_name', 'contact_name', 'contact_email', 'terms_accepted']:
@@ -141,6 +141,24 @@ class OrderCreateAPITest(TestCase):
 
     def test_unknown_plan_returns_400(self):
         response = self._post({**self.valid_payload, 'plan': 'does-not-exist'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('plan', response.json()['errors'])
+
+    def test_retired_starter_plan_name_returns_400(self):
+        """'starter' was retired in favor of 'standard' and must no longer resolve."""
+        response = self._post({**self.valid_payload, 'plan': 'starter'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('plan', response.json()['errors'])
+
+    def test_retired_professional_plan_name_returns_400(self):
+        """'professional' never corresponded to a real offering and must not resolve."""
+        response = self._post({**self.valid_payload, 'plan': 'professional'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('plan', response.json()['errors'])
+
+    def test_enterprise_plan_not_orderable_via_api(self):
+        """Enterprise is sold manually/by contact, not through the order API."""
+        response = self._post({**self.valid_payload, 'plan': 'enterprise'})
         self.assertEqual(response.status_code, 400)
         self.assertIn('plan', response.json()['errors'])
 
@@ -244,9 +262,9 @@ class CheckSlugAPITest(TestCase):
 
     def setUp(self):
         cache.clear()
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         if self.plan is None:
-            self.plan = Plan.objects.create(name='starter', display_name='Starter')
+            self.plan = Plan.objects.create(name='standard', display_name='Standard')
 
     def _get(self, slug=None):
         params = {} if slug is None else {'slug': slug}

@@ -33,7 +33,7 @@ class OrderCreateAPIView(APIView):
 
     Request body:
     {
-        "plan": "starter",              // Plan-Name (Pflicht)
+        "plan": "standard",              // Plan-Name (Pflicht)
         "user_seats": 5,                // positive Ganzzahl (Pflicht)
         "ai_addon": true,               // optional, Default false
         "slug": "acme",                 // 2-10 lowercase alphanumerisch (Pflicht)

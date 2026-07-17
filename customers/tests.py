@@ -19,8 +19,8 @@ class PlanModelTest(TestCase):
         """Set up test data."""
         # Use a unique name that won't conflict with data migration
         self.plan_data = {
-            'name': 'starter',
-            'display_name': 'Test Starter Plan',
+            'name': 'standard',
+            'display_name': 'Test Standard Plan',
             'description': 'Basic plan for small teams',
             'max_users_per_instance': 10,
             'max_instances': 5,
@@ -34,7 +34,7 @@ class PlanModelTest(TestCase):
     def test_plan_str_method(self):
         """Test the __str__ method returns display_name."""
         # Use existing plan from data migration
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.assertEqual(str(plan), plan.display_name)
 
     def test_plan_name_unique(self):
@@ -42,17 +42,17 @@ class PlanModelTest(TestCase):
         # Try to create a duplicate of an existing plan
         with self.assertRaises(Exception):  # IntegrityError
             Plan.objects.create(
-                name='starter',  # This already exists from data migration
-                display_name='Duplicate Starter'
+                name='standard',  # This already exists from data migration
+                display_name='Duplicate Standard'
             )
 
     def test_plan_default_values(self):
         """Test default values for plan fields."""
-        # Delete the professional plan if it exists and create a fresh one
-        Plan.objects.filter(name='professional').delete()
+        # Delete the enterprise plan if it exists and create a fresh one
+        Plan.objects.filter(name='enterprise').delete()
         minimal_plan = Plan.objects.create(
-            name='professional',
-            display_name='Professional Plan'
+            name='enterprise',
+            display_name='Enterprise Plan'
         )
         self.assertEqual(minimal_plan.max_users_per_instance, 0)
         self.assertEqual(minimal_plan.max_instances, 0)
@@ -64,7 +64,7 @@ class PlanModelTest(TestCase):
 
     def test_inactive_plan(self):
         """Test modifying a plan to be inactive."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         plan.is_active = False
         plan.save()
         plan.refresh_from_db()
@@ -81,7 +81,7 @@ class PlanModelTest(TestCase):
 
     def test_plan_with_stripe_ids(self):
         """Test updating a plan with Stripe IDs."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         plan.stripe_product_id = 'prod_123'
         plan.stripe_price_id_user = 'price_user_123'
         plan.stripe_price_id_instance = 'price_inst_123'
@@ -95,20 +95,20 @@ class PlanModelTest(TestCase):
 
     def test_plan_timestamps(self):
         """Test that timestamps are automatically set."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.assertIsNotNone(plan.created_at)
         self.assertIsNotNone(plan.updated_at)
 
     def test_plan_uuid_primary_key(self):
         """Test that plans use UUID as primary key."""
-        plan = Plan.objects.filter(name='starter').first()
+        plan = Plan.objects.filter(name='standard').first()
         self.assertIsNotNone(plan.id)
         # UUID should be a string representation of 36 characters with hyphens
         self.assertEqual(len(str(plan.id)), 36)
 
     def test_plan_pricing_validation(self):
         """Test that pricing fields accept decimal values correctly."""
-        plan = Plan.objects.filter(name='professional').first()
+        plan = Plan.objects.filter(name='enterprise').first()
         plan.price_per_user = Decimal('25.99')
         plan.price_per_instance = Decimal('10.50')
         plan.price_ai_addon = Decimal('15.00')
@@ -120,51 +120,55 @@ class PlanModelTest(TestCase):
 
 
 class PlanDataMigrationTest(TestCase):
-    """Test cases for initial data migration."""
+    """Test cases for the plan data migration (starter/professional/enterprise -> standard/enterprise)."""
 
     def test_initial_plans_exist(self):
-        """Test that initial plans were created by data migration."""
-        starter = Plan.objects.filter(name='starter').first()
-        professional = Plan.objects.filter(name='professional').first()
+        """Test that only the real plans remain after the data migration."""
+        standard = Plan.objects.filter(name='standard').first()
         enterprise = Plan.objects.filter(name='enterprise').first()
 
-        self.assertIsNotNone(starter)
-        self.assertIsNotNone(professional)
+        self.assertIsNotNone(standard)
         self.assertIsNotNone(enterprise)
+        self.assertFalse(Plan.objects.filter(name__in=['starter', 'professional']).exists())
 
     def test_initial_plans_count(self):
-        """Test that exactly 3 plans were created by data migration."""
-        count = Plan.objects.filter(name__in=['starter', 'professional', 'enterprise']).count()
-        self.assertEqual(count, 3)
+        """Test that exactly the 2 real plans exist after the data migration."""
+        count = Plan.objects.filter(name__in=['standard', 'enterprise']).count()
+        self.assertEqual(count, 2)
 
     def test_initial_plans_pricing(self):
-        """Test that initial plans have correct reference pricing."""
-        plans = Plan.objects.filter(name__in=['starter', 'professional', 'enterprise'])
+        """Test that the migrated plans kept their reference pricing."""
+        plans = Plan.objects.filter(name__in=['standard', 'enterprise'])
 
         for plan in plans:
             self.assertEqual(plan.price_per_user, Decimal('19.00'))
             self.assertEqual(plan.price_per_instance, Decimal('5.00'))
             self.assertEqual(plan.price_ai_addon, Decimal('7.50'))
             self.assertTrue(plan.ai_addon_available)
-            self.assertTrue(plan.is_active)
 
     def test_initial_plans_unlimited_limits(self):
         """Test that initial plans have unlimited users and instances (0 = unlimited)."""
-        plans = Plan.objects.filter(name__in=['starter', 'professional', 'enterprise'])
+        plans = Plan.objects.filter(name__in=['standard', 'enterprise'])
 
         for plan in plans:
             self.assertEqual(plan.max_users_per_instance, 0)
             self.assertEqual(plan.max_instances, 0)
 
     def test_initial_plans_display_names(self):
-        """Test that initial plans have proper display names."""
-        starter = Plan.objects.get(name='starter')
-        professional = Plan.objects.get(name='professional')
+        """Test that migrated plans have proper display names."""
+        standard = Plan.objects.get(name='standard')
         enterprise = Plan.objects.get(name='enterprise')
 
-        self.assertEqual(starter.display_name, 'Starter')
-        self.assertEqual(professional.display_name, 'Professional')
+        self.assertEqual(standard.display_name, 'Standard')
         self.assertEqual(enterprise.display_name, 'Enterprise')
+
+    def test_standard_plan_is_active_enterprise_is_not(self):
+        """Standard is bookable via Stripe/the order API; enterprise is manual-only."""
+        standard = Plan.objects.get(name='standard')
+        enterprise = Plan.objects.get(name='enterprise')
+
+        self.assertTrue(standard.is_active)
+        self.assertFalse(enterprise.is_active)
 
 
 class CustomerModelTest(TestCase):
@@ -420,7 +424,7 @@ class SubscriptionModelTest(TestCase):
         )
 
         # Create a plan
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
         # Subscription test data
         self.subscription_data = {
@@ -689,7 +693,7 @@ class CustomerServiceTest(TestCase):
 
     def setUp(self):
         """Set up test data."""
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
 
     def test_create_customer_success(self):
         """Test successful customer creation with all related objects."""

@@ -33,9 +33,9 @@ class CheckoutWebhookTest(TestCase):
     """Tests für _handle_checkout_session_completed / _expired."""
 
     def setUp(self):
-        self.plan = Plan.objects.filter(name='starter').first()
+        self.plan = Plan.objects.filter(name='standard').first()
         if self.plan is None:
-            self.plan = Plan.objects.create(name='starter', display_name='Starter')
+            self.plan = Plan.objects.create(name='standard', display_name='Standard')
         self.plan.ai_addon_available = True
         self.plan.stripe_price_id_user = 'price_user_1'
         self.plan.stripe_price_id_instance = 'price_instance_1'

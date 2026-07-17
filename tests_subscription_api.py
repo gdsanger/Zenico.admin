@@ -42,9 +42,9 @@ class SubscriptionAPITestCase(TestCase):
         """Set up test data."""
         # Get or create plan
         self.plan, _ = Plan.objects.get_or_create(
-            name='professional',
+            name='standard',
             defaults={
-                'display_name': 'Professional',
+                'display_name': 'Standard',
                 'price_per_user': Decimal('15.00'),
                 'is_active': True
             }
@@ -685,9 +685,9 @@ class CancellationTaskTestCase(TestCase):
         """Set up test data."""
         # Get or create plan
         self.plan, _ = Plan.objects.get_or_create(
-            name='professional',
+            name='standard',
             defaults={
-                'display_name': 'Professional',
+                'display_name': 'Standard',
                 'price_per_user': Decimal('15.00'),
                 'is_active': True
             }
