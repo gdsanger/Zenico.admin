@@ -237,3 +237,109 @@ class OrderCreateAPITest(TestCase):
         # (same convention as ContactCreateAPIView).
         blocked = self._post({**self.valid_payload, 'slug': 'acme9'})
         self.assertEqual(blocked.status_code, 403)
+
+
+class CheckSlugAPITest(TestCase):
+    """Tests for GET /api/orders/check-slug/."""
+
+    def setUp(self):
+        cache.clear()
+        self.plan = Plan.objects.filter(name='starter').first()
+        if self.plan is None:
+            self.plan = Plan.objects.create(name='starter', display_name='Starter')
+
+    def _get(self, slug=None):
+        params = {} if slug is None else {'slug': slug}
+        return self.client.get('/api/orders/check-slug/', params)
+
+    def test_free_slug_returns_available(self):
+        response = self._get('acme')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['available'])
+        self.assertIn('message', data)
+
+    def test_slug_taken_by_customer_returns_unavailable(self):
+        Customer.objects.create(
+            slug='acme',
+            company_name='Existing',
+            contact_name='X',
+            contact_email='x@y.de',
+            billing_email='x@y.de',
+            billing_address='A',
+            billing_city='B',
+            billing_postal_code='12345',
+        )
+        response = self._get('acme')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['available'])
+
+    def test_slug_taken_by_open_order_returns_unavailable(self):
+        Order.objects.create(
+            plan=self.plan,
+            user_seats=1,
+            slug='acme',
+            company_name='Other',
+            contact_name='Y',
+            contact_email='y@z.de',
+            billing_email='y@z.de',
+            status='pending_payment',
+        )
+        response = self._get('acme')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['available'])
+
+    def test_slug_free_after_failed_order(self):
+        Order.objects.create(
+            plan=self.plan,
+            user_seats=1,
+            slug='acme',
+            company_name='Other',
+            contact_name='Y',
+            contact_email='y@z.de',
+            billing_email='y@z.de',
+            status='failed',
+        )
+        response = self._get('acme')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['available'])
+
+    def test_uppercase_slug_is_normalized(self):
+        Customer.objects.create(
+            slug='acme',
+            company_name='Existing',
+            contact_name='X',
+            contact_email='x@y.de',
+            billing_email='x@y.de',
+            billing_address='A',
+            billing_city='B',
+            billing_postal_code='12345',
+        )
+        response = self._get('ACME')
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['available'])
+
+    def test_invalid_slug_format_returns_unavailable(self):
+        for bad in ['a', 'toolongslug', 'Not-Valid!', 'ab cd']:
+            response = self._get(bad)
+            self.assertEqual(response.status_code, 200)
+            self.assertFalse(response.json()['available'], bad)
+
+    def test_missing_slug_returns_unavailable(self):
+        response = self._get()
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['available'])
+
+    def test_no_auth_required(self):
+        response = self._get('acme')
+        self.assertEqual(response.status_code, 200)
+
+    @override_settings(RATELIMIT_ENABLE=True)
+    def test_rate_limit_blocks_after_thirty(self):
+        cache.clear()
+        for i in range(30):
+            resp = self._get('acme')
+            self.assertEqual(resp.status_code, 200, resp.content)
+
+        blocked = self._get('acme')
+        self.assertEqual(blocked.status_code, 403)
