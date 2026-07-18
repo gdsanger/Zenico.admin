@@ -202,6 +202,12 @@ class Instance(models.Model):
         verbose_name='provisioning error',
         help_text='Letzte Fehlermeldung, falls status=failed'
     )
+    instance_ready_mail_sent_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name='instance ready mail sent at',
+        help_text='Zeitpunkt, an dem die "Instanz ist bereit"-Mail an den Kunden verschickt wurde'
+    )
     image_tag = models.CharField(
         max_length=50,
         default='latest',

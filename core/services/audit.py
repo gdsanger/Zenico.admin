@@ -29,6 +29,7 @@ class AuditAction:
     INSTANCE_REACTIVATED = "instance.reactivated"
     INSTANCE_DEPROVISIONED = "instance.deprovisioned"
     INSTANCE_SEATS_CHANGED = "instance.seats_changed"
+    INSTANCE_READY_MAIL_SENT = "instance.ready_mail_sent"
 
     # Subscription
     SUBSCRIPTION_CREATED = "subscription.created"
