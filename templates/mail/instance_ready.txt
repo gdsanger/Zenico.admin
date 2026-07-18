@@ -7,14 +7,11 @@ Sehr geehrte/r {{ contact_name }},
 
 gute Nachrichten — Ihre Zenico-Instanz wurde erfolgreich eingerichtet und ist jetzt einsatzbereit!
 
-Ihre Instanz-Daten:
-────────────────────────────────────────────────────────
-Instanz-Name: {{ instance_name }}
-Instanz-URL: {{ instance_url }}
-API-Key: {{ api_key }}
-────────────────────────────────────────────────────────
+Ihre Instanz-URL:
+{{ instance_url }}
 
-Sie können sich jetzt mit Ihren Azure AD-Zugangsdaten anmelden und Ihre Mitarbeiter lizenzieren.
+Beim ersten Aufruf legen Sie Ihren Admin-Zugang selbst an und können anschließend
+Ihre Mitarbeiter lizenzieren.
 
 Jetzt starten: {{ instance_url }}
 

@@ -230,6 +230,10 @@ ADMIN_NOTIFICATION_EMAIL = os.getenv('ADMIN_NOTIFICATION_EMAIL', 'team@zenico.ap
 ADMIN_BASE_URL = os.getenv('ADMIN_BASE_URL', 'https://admin.zenico.app')
 FRONTEND_BASE_URL = os.getenv('FRONTEND_BASE_URL', 'https://zenico.app')
 
+# Logo für HTML-Mails (templates/mail/base.html). Muss eine gehostete, absolute
+# PNG-URL sein — Outlook rendert kein SVG. Standard zeigt auf das Zenico.web-Static-Asset.
+MAIL_LOGO_URL = os.getenv('MAIL_LOGO_URL', f'{FRONTEND_BASE_URL}/static/img/zenico-logo.png')
+
 # Order checkout redirect URLs (zeigen auf Zenico.web)
 ORDER_SUCCESS_URL = os.getenv(
     'ORDER_SUCCESS_URL', f'{FRONTEND_BASE_URL}/bestellung/erfolg/?session_id={{CHECKOUT_SESSION_ID}}'

@@ -17,16 +17,15 @@
         style="padding:16px 20px;border-radius:6px;
                border-left:3px solid #2E9A9A;
                font-size:13px;color:#6B7280;line-height:1.6;font-family:Arial,Helvetica,sans-serif;">
-      <strong>Ihre Instanz-Daten:</strong><br><br>
-      <strong>Instanz-Name:</strong> {{ instance_name }}<br>
-      <strong>Instanz-URL:</strong> <a href="{{ instance_url }}" style="color:#2E9A9A;text-decoration:none;">{{ instance_url }}</a><br>
-      <strong>API-Key:</strong> <code style="background:#E5E7EB;padding:2px 6px;border-radius:3px;font-family:monospace;">{{ api_key }}</code>
+      <strong>Ihre Instanz-URL:</strong><br>
+      <a href="{{ instance_url }}" style="color:#2E9A9A;text-decoration:none;">{{ instance_url }}</a>
     </td>
   </tr>
 </table>
 
 <p style="margin:0 0 15px 0;">
-  Sie können sich jetzt mit Ihren Azure AD-Zugangsdaten anmelden und Ihre Mitarbeiter lizenzieren.
+  Beim ersten Aufruf legen Sie Ihren Admin-Zugang selbst an und können anschließend
+  Ihre Mitarbeiter lizenzieren.
 </p>
 
 {% include "mail/components/_button.html" with url=instance_url label="Jetzt starten →" %}

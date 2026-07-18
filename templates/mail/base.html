@@ -5,27 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>{% block subject %}Zenico{% endblock %}</title>
+  <!--[if mso]>
+  <style type="text/css">
+    table, td { font-family: Arial, Helvetica, sans-serif !important; }
+    table { mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+  </style>
+  <![endif]-->
 </head>
 <body style="margin:0;padding:0;background-color:#F4F6F8;font-family:Arial,Helvetica,sans-serif;">
 
+  <!--
+    Zenico CI-Farbpalette (zentral hier dokumentiert; E-Mail-Clients unterstützen
+    keine CSS-Variablen, daher werden die Hex-Werte in allen mail/*.html-Templates
+    hartkodiert wiederholt):
+      Teal (Primär/Akzent):        #2E9A9A
+      Dunkel (Text/Header-Akzent): #1A1F2E
+      Gold (Logo-Sekundärfarbe):   #C9A84C
+    Logo-URL kommt zentral aus dem Setting MAIL_LOGO_URL (core/services/mail.py
+    reicht sie als Kontextvariable "mail_logo_url" an alle Templates durch).
+  -->
+
   <!-- Outer Wrapper -->
-  <table width="100%" cellpadding="0" cellspacing="0" border="0"
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation"
          style="background-color:#F4F6F8;">
     <tr>
       <td align="center" style="padding:32px 16px;">
 
+        <!--[if mso]>
+        <table role="presentation" width="600" align="center" cellpadding="0" cellspacing="0" border="0"><tr><td>
+        <![endif]-->
+
         <!-- Container -->
-        <table width="600" cellpadding="0" cellspacing="0" border="0"
+        <table width="600" cellpadding="0" cellspacing="0" border="0" role="presentation"
                style="max-width:600px;width:100%;">
 
           <!-- Header -->
           <tr>
-            <td bgcolor="#1A1F2E"
-                style="padding:24px 32px;border-radius:8px 8px 0 0;">
-              <!-- Logo Wordmark -->
-              <span style="font-size:24px;font-weight:bold;color:#2E9A9A;font-family:Arial,Helvetica,sans-serif;">
-                zenico
-              </span>
+            <td bgcolor="#FFFFFF" align="left"
+                style="padding:24px 32px;border-radius:8px 8px 0 0;border-bottom:3px solid #1A1F2E;">
+              <img src="{{ mail_logo_url }}" width="156" height="45" alt="Zenico"
+                   style="display:block;width:156px;height:45px;border:0;outline:none;
+                          text-decoration:none;font-family:Arial,Helvetica,sans-serif;
+                          font-size:20px;font-weight:bold;color:#1A1F2E;">
             </td>
           </tr>
 
@@ -43,13 +64,15 @@
             <td bgcolor="#F4F6F8"
                 style="padding:24px 32px;border-radius:0 0 8px 8px;
                        border-top:1px solid #E5E7EB;font-family:Arial,Helvetica,sans-serif;">
-              <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                 <tr>
                   <td style="font-size:12px;color:#6B7280;line-height:1.6;">
                     © {{ current_year }} Zenico. Alle Rechte vorbehalten.
                     {% block footer_extra %}{% endblock %}
+                    <br>
+                    <span style="color:#2E9A9A;letter-spacing:0.05em;">WORK CALM. SHIP FAST.</span>
                   </td>
-                  <td align="right"
+                  <td align="right" valign="top"
                       style="font-size:12px;color:#6B7280;">
                     <a href="{{ frontend_base_url }}/impressum/"
                        style="color:#6B7280;text-decoration:none;">Impressum</a>
@@ -63,6 +86,11 @@
           </tr>
 
         </table>
+
+        <!--[if mso]>
+        </td></tr></table>
+        <![endif]-->
+
       </td>
     </tr>
   </table>
