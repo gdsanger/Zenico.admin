@@ -349,6 +349,66 @@ class MailServiceTests(TestCase):
                 self.assertTrue(contact_result)
                 self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 2)
 
+    def test_send_template_order_confirmed_and_instance_ready_render(self):
+        """Test that the branded customer mails render without errors and without leaking secrets."""
+        from core.services.mail import MailService
+        from unittest.mock import patch, MagicMock
+        from django.template.loader import render_to_string
+
+        with patch.object(MailService, '_get_access_token', return_value='fake-token'):
+            with patch('requests.post') as mock_post:
+                mock_response = MagicMock()
+                mock_response.status_code = 202
+                mock_post.return_value = mock_response
+
+                order_result = MailService.send_template(
+                    to='recipient@example.com',
+                    template='order_confirmed',
+                    context={
+                        'contact_name': 'Max Muster',
+                        'company_name': 'Acme GmbH',
+                        'instance_url': 'https://acme.zenico.app',
+                    },
+                    subject_override='Bestellbestätigung – Zenico',
+                )
+                instance_result = MailService.send_template(
+                    to='recipient@example.com',
+                    template='instance_ready',
+                    context={
+                        'contact_name': 'Max Muster',
+                        'instance_name': 'Acme',
+                        'instance_url': 'https://acme.zenico.app',
+                    },
+                    subject_override='Ihre Zenico-Instanz ist bereit',
+                )
+
+                self.assertTrue(order_result)
+                self.assertTrue(instance_result)
+                self.assertEqual(AuditLog.objects.filter(action=AuditAction.MAIL_SENT).count(), 2)
+
+        # api_key must never appear in a customer-facing mail, even if a caller passed it by mistake.
+        rendered = render_to_string('mail/instance_ready.html', {
+            'contact_name': 'Max Muster',
+            'instance_name': 'Acme',
+            'instance_url': 'https://acme.zenico.app',
+            'api_key': 'super-secret-phone-home-key',
+            'mail_from_name': 'Zenico',
+            'current_year': 2026,
+        })
+        self.assertNotIn('super-secret-phone-home-key', rendered)
+        self.assertNotIn('Azure AD', rendered)
+        self.assertIn('legen Sie Ihren eigenen Admin-Zugang selbst an', rendered)
+
+        rendered_order = render_to_string('mail/order_confirmed.html', {
+            'contact_name': 'Max Muster',
+            'company_name': 'Acme GmbH',
+            'instance_url': 'https://acme.zenico.app',
+            'mail_from_name': 'Zenico',
+            'current_year': 2026,
+        })
+        self.assertNotIn('mit allen Zugangsdaten', rendered_order)
+        self.assertIn('Ihren Admin-Zugang selbst anlegen', rendered_order)
+
     def test_send_template_with_invalid_template(self):
         """Test that send_template() handles template errors."""
         from core.services.mail import MailService
