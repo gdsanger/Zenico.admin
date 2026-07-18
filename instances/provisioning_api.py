@@ -14,6 +14,7 @@ from rest_framework.views import APIView
 
 from instances.models import Instance
 from instances.provisioning_permissions import IsProvisioningAgent
+from instances.services import send_instance_ready_mail
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,9 @@ class CompleteInstanceView(APIView):
         ])
 
         logger.info('Instance %s provisioned successfully on %s', instance_id, instance.server_host)
+
+        send_instance_ready_mail(instance)
+
         return Response({'status': 'active', 'provisioned_at': instance.provisioned_at.isoformat()})
 
 
