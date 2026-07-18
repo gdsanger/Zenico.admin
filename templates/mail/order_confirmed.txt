@@ -12,7 +12,8 @@ Ihre zukünftige Instanz-URL:
 {{ instance_url }}
 
 Die Bereitstellung dauert in der Regel nur wenige Minuten. Sobald Ihre Instanz
-einsatzbereit ist, erhalten Sie eine weitere E-Mail mit allen Zugangsdaten.
+einsatzbereit ist, erhalten Sie eine E-Mail mit dem Link zu Ihrer Instanz, wo Sie
+Ihren Admin-Zugang selbst anlegen.
 
 Mit freundlichen Grüßen
 Ihr {{ mail_from_name }}-Team
