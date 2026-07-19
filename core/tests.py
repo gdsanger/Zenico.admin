@@ -440,7 +440,6 @@ class StripeServiceTests(TestCase):
             defaults={
                 'display_name': 'Standard Plan',
                 'price_per_user': 19.00,
-                'price_per_instance': 5.00,
                 'price_ai_addon': 7.50,
                 'stripe_price_id_user': 'price_user_123',
                 'stripe_price_id_instance': 'price_instance_123',

@@ -51,6 +51,8 @@ class Plan(models.Model):
         verbose_name='price per user',
         help_text='€/User/Month'
     )
+    # Deprecated: the business model no longer bills per instance (user-seat +
+    # optional AI addon only). Kept for schema/data continuity, not read anywhere.
     price_per_instance = models.DecimalField(
         max_digits=10,
         decimal_places=2,
