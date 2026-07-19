@@ -6,6 +6,7 @@ via StripeEvent model, and dispatches to appropriate handler methods.
 """
 
 import logging
+import json
 from typing import Optional
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -84,6 +85,7 @@ class StripeWebhookHandler:
             logger.error(f'Invalid webhook signature: {e}')
             raise
 
+        event = json.loads(payload)  # stripe v8: ab hier plain dict fuer alle Handler
         # Get or create StripeEvent for idempotency
         stripe_event_id = event['id']
         event_type = event['type']
@@ -93,7 +95,7 @@ class StripeWebhookHandler:
             stripe_event_id=stripe_event_id,
             defaults={
                 'event_type': event_type,
-                'payload': event.to_dict_recursive(),
+                'payload': json.loads(payload),
             }
         )
 
