@@ -10,7 +10,6 @@ class PlanAdmin(admin.ModelAdmin):
         'display_name',
         'name',
         'price_per_user',
-        'price_per_instance',
         'price_ai_addon',
         'ai_addon_available',
         'is_active',
@@ -29,7 +28,6 @@ class PlanAdmin(admin.ModelAdmin):
         ('Pricing', {
             'fields': [
                 'price_per_user',
-                'price_per_instance',
                 'price_ai_addon',
                 'ai_addon_available',
             ]
