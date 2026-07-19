@@ -5,6 +5,7 @@ Handles incoming Stripe webhooks, verifies signatures, ensures idempotent proces
 via StripeEvent model, and dispatches to appropriate handler methods.
 """
 
+import json
 import logging
 from typing import Optional
 from django.conf import settings
@@ -93,7 +94,7 @@ class StripeWebhookHandler:
             stripe_event_id=stripe_event_id,
             defaults={
                 'event_type': event_type,
-                'payload': event.to_dict_recursive(),
+                'payload': json.loads(payload),
             }
         )
 
