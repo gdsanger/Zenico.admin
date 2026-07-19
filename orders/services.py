@@ -98,8 +98,10 @@ class OrderService:
         """
         Stripe-Checkout-Session (mode=subscription) für eine Order erstellen.
 
-        Line Items ergeben sich aus dem Plan: User-Seats (× user_seats),
-        eine Master-Instanz (× 1) und optional das KI-Addon (× 1).
+        Line Items ergeben sich aus dem Plan: User-Seats (× user_seats)
+        und optional das KI-Addon (× 1). Es gibt keine Instanzgebühr mehr
+        (vgl. #893/#896) — ein evtl. am Plan hinterlegtes
+        `stripe_price_id_instance` fließt bewusst nicht ein.
         Setzt `metadata.order_id`, den der Webhook zum Anlegen von Kunde und
         Instanz benötigt. Speichert die Session-ID auf der Order.
         """
@@ -111,11 +113,6 @@ class OrderService:
             line_items.append({
                 'price': plan.stripe_price_id_user,
                 'quantity': order.user_seats,
-            })
-        if plan.stripe_price_id_instance:
-            line_items.append({
-                'price': plan.stripe_price_id_instance,
-                'quantity': 1,
             })
         if order.ai_addon and plan.stripe_price_id_ai:
             line_items.append({
