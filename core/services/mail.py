@@ -261,6 +261,7 @@ class MailService:
             'admin_base_url': settings.ADMIN_BASE_URL,
             'frontend_base_url': settings.FRONTEND_BASE_URL,
             'mail_from_name': settings.MAIL_FROM_NAME,
+            'mail_logo_url': settings.MAIL_LOGO_URL,
             'current_year': datetime.now().year,
         }
 

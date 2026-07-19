@@ -1,12 +1,30 @@
+<!--
+  Zenico CI-Referenz für alle mail/-Templates (zentral hier dokumentiert, nicht pro Template duplizieren):
+    Teal (Akzent/CTA):  #2E9A9A
+    Dunkel (Header/BG): #1A1F2E
+    Hintergrund:         #F4F6F8
+    Text sekundär:       #6B7280
+  Logo-URL kommt aus {{ mail_logo_url }} (Setting MAIL_LOGO_URL, core/services/mail.py) —
+  nicht hart in Templates verdrahten.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <!--[if mso]>
+  <noscript>
+    <xml>
+      <o:OfficeDocumentSettings>
+        <o:PixelsPerInch>96</o:PixelsPerInch>
+      </o:OfficeDocumentSettings>
+    </xml>
+  </noscript>
+  <![endif]-->
   <title>{% block subject %}Zenico{% endblock %}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#F4F6F8;font-family:Arial,Helvetica,sans-serif;">
+<body style="margin:0;padding:0;background-color:#F4F6F8;font-family:Arial,Helvetica,sans-serif;mso-line-height-rule:exactly;">
 
   <!-- Outer Wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" border="0"
@@ -14,6 +32,9 @@
     <tr>
       <td align="center" style="padding:32px 16px;">
 
+        <!--[if mso]>
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" align="center"><tr><td>
+        <![endif]-->
         <!-- Container -->
         <table width="600" cellpadding="0" cellspacing="0" border="0"
                style="max-width:600px;width:100%;">
@@ -21,11 +42,11 @@
           <!-- Header -->
           <tr>
             <td bgcolor="#1A1F2E"
+                align="center"
                 style="padding:24px 32px;border-radius:8px 8px 0 0;">
-              <!-- Logo Wordmark -->
-              <span style="font-size:24px;font-weight:bold;color:#2E9A9A;font-family:Arial,Helvetica,sans-serif;">
-                zenico
-              </span>
+              <!-- Logo: gehostetes PNG (Outlook rendert kein SVG), Retina-Pixelbreite mit gesetztem width-Attribut -->
+              <img src="{{ mail_logo_url }}" width="156" height="45" alt="Zenico"
+                   style="display:block;width:156px;height:45px;border:0;outline:none;text-decoration:none;">
             </td>
           </tr>
 
@@ -45,6 +66,11 @@
                        border-top:1px solid #E5E7EB;font-family:Arial,Helvetica,sans-serif;">
               <table width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
+                  <td colspan="2" style="font-size:11px;color:#2E9A9A;letter-spacing:0.5px;padding-bottom:8px;">
+                    WORK CALM. SHIP FAST.
+                  </td>
+                </tr>
+                <tr>
                   <td style="font-size:12px;color:#6B7280;line-height:1.6;">
                     © {{ current_year }} Zenico. Alle Rechte vorbehalten.
                     {% block footer_extra %}{% endblock %}
@@ -63,6 +89,9 @@
           </tr>
 
         </table>
+        <!--[if mso]>
+        </td></tr></table>
+        <![endif]-->
       </td>
     </tr>
   </table>
