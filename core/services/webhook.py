@@ -93,7 +93,7 @@ class StripeWebhookHandler:
             stripe_event_id=stripe_event_id,
             defaults={
                 'event_type': event_type,
-                'payload': dict(event),
+                'payload': event.to_dict_recursive(),
             }
         )
 
