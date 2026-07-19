@@ -21,7 +21,7 @@ from customers.services import CustomerService
 from instances.models import Instance
 from orders.models import Order
 from core.services.audit import AuditService, AuditAction
-from core.services.stripe import StripeService
+from core.services.stripe import StripeService, get_stripe
 from core.services.mail import MailService
 
 logger = logging.getLogger(__name__)
@@ -123,9 +123,11 @@ class StripeWebhookHandler:
             # Dispatch to handler
             cls._dispatch(event, db_event)
 
-            # Mark as processed
+            # Mark as processed; clear any error from a previous failed
+            # attempt so a successful resend no longer shows as "Failed".
             db_event.processed = True
             db_event.processed_at = timezone.now()
+            db_event.error_message = ''
             db_event.save()
 
             # Log success
@@ -179,6 +181,7 @@ class StripeWebhookHandler:
             'customer.subscription.updated': cls._handle_subscription_updated,
             'customer.subscription.deleted': cls._handle_subscription_deleted,
             'invoice.paid': cls._handle_invoice_paid,
+            'invoice_payment.paid': cls._handle_invoice_payment_paid,
             'invoice.payment_failed': cls._handle_invoice_payment_failed,
             'invoice.payment_action_required': cls._handle_invoice_payment_action_required,
             'customer.updated': cls._handle_customer_updated,
@@ -495,8 +498,42 @@ class StripeWebhookHandler:
 
     @classmethod
     def _handle_invoice_paid(cls, event: stripe.Event, db_event: StripeEvent) -> None:
-        """Handle invoice.paid event - sync invoice and reactivate instances if needed."""
-        invoice_data = event['data']['object']
+        """
+        Handle invoice.paid event - sync invoice and reactivate instances if needed.
+
+        Liest das Invoice-Objekt aus `db_event.payload` (plain dict aus
+        json.loads) statt aus dem Stripe-SDK-Objekt: `StripeObject` in
+        stripe>=8 unterstützt kein `.get()` mehr, das `_sync_paid_invoice`
+        aber benötigt (siehe #913).
+        """
+        invoice_data = db_event.payload['data']['object']
+        cls._sync_paid_invoice(invoice_data, db_event)
+
+    @classmethod
+    def _handle_invoice_payment_paid(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """
+        Handle invoice_payment.paid - neuere Stripe-API-Version feuert dieses
+        Event statt invoice.paid.
+
+        Das `invoice_payment`-Objekt referenziert die Invoice nur über ihre
+        ID; die vollständigen Invoice-Daten (amount_due, status, hosted_url,
+        ...) werden für die Synchronisierung nachgeladen.
+        """
+        invoice_payment_data = db_event.payload['data']['object']
+        invoice_id = invoice_payment_data.get('invoice')
+
+        if not invoice_id:
+            logger.warning('invoice_payment.paid event without invoice reference, skipping')
+            return
+
+        stripe_client = get_stripe()
+        invoice_data = stripe_client.Invoice.retrieve(invoice_id).to_dict()
+
+        cls._sync_paid_invoice(invoice_data, db_event)
+
+    @classmethod
+    def _sync_paid_invoice(cls, invoice_data: dict, db_event: StripeEvent) -> None:
+        """Shared logic for invoice.paid and invoice_payment.paid: sync invoice, reactivate instances."""
         stripe_customer_id = invoice_data['customer']
 
         # Find customer
