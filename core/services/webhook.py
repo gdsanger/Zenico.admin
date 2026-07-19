@@ -5,6 +5,7 @@ Handles incoming Stripe webhooks, verifies signatures, ensures idempotent proces
 via StripeEvent model, and dispatches to appropriate handler methods.
 """
 
+import json
 import logging
 import json
 from typing import Optional
