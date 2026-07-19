@@ -515,7 +515,7 @@ class StripeServiceTests(TestCase):
             ).exists())
 
     def test_create_subscription_with_all_items(self):
-        """Test creating subscription with user, instance, and AI addon."""
+        """Test creating subscription with user and AI addon (no instance price, vgl. #893/#896)."""
         from core.services.stripe import StripeService
         from unittest.mock import patch, MagicMock
 
@@ -538,7 +538,9 @@ class StripeServiceTests(TestCase):
             # Verify call arguments
             call_kwargs = mock_create.call_args.kwargs if hasattr(mock_create.call_args, 'kwargs') else mock_create.call_args[1]
             self.assertEqual(call_kwargs['customer'], 'cus_test123')
-            self.assertEqual(len(call_kwargs['items']), 3)  # user + instance + AI
+            self.assertEqual(len(call_kwargs['items']), 2)  # user + AI, no instance price
+            prices = [item['price'] for item in call_kwargs['items']]
+            self.assertNotIn('price_instance_123', prices)
             self.assertEqual(call_kwargs['trial_period_days'], 14)
             self.assertTrue(call_kwargs['automatic_tax']['enabled'])
 

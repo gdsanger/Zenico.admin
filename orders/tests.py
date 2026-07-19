@@ -90,8 +90,8 @@ class OrderCreateAPITest(TestCase):
         _, kwargs = stripe_mock.checkout.Session.create.call_args
         line_items = kwargs['line_items']
         prices = {li['price']: li['quantity'] for li in line_items}
+        self.assertEqual(len(line_items), 2)
         self.assertEqual(prices['price_user_123'], 5)
-        self.assertEqual(prices['price_instance_123'], 1)
         self.assertEqual(prices['price_ai_123'], 1)
 
     @patch('orders.services.get_stripe')
@@ -103,8 +103,22 @@ class OrderCreateAPITest(TestCase):
         self._post(payload)
 
         _, kwargs = stripe_mock.checkout.Session.create.call_args
-        prices = [li['price'] for li in kwargs['line_items']]
+        line_items = kwargs['line_items']
+        prices = [li['price'] for li in line_items]
+        self.assertEqual(len(line_items), 1)
         self.assertNotIn('price_ai_123', prices)
+
+    @patch('orders.services.get_stripe')
+    def test_instance_price_never_included_even_if_configured(self, mock_get_stripe):
+        """Kein Instanz-Preis-Line-Item mehr, auch wenn am Plan gesetzt (vgl. #893/#896)."""
+        stripe_mock, _ = _mock_stripe()
+        mock_get_stripe.return_value = stripe_mock
+
+        self._post(self.valid_payload)
+
+        _, kwargs = stripe_mock.checkout.Session.create.call_args
+        prices = [li['price'] for li in kwargs['line_items']]
+        self.assertNotIn('price_instance_123', prices)
 
     @patch('orders.services.get_stripe')
     def test_order_creation_writes_audit_log(self, mock_get_stripe):

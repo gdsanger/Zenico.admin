@@ -330,11 +330,15 @@ class StripeService:
         """
         Create a Stripe subscription with multiple line items.
 
+        Es gibt keine Instanzgebühr mehr (vgl. #893/#896) — `instance_seats`
+        wird nur noch für den lokalen Subscription-Datensatz (Audit-Log,
+        `instance_seats_total`) übernommen, nicht als Stripe-Line-Item.
+
         Args:
             customer: Local Customer instance
             plan: Plan instance with Stripe price IDs
             user_seats: Number of user licenses
-            instance_seats: Number of instance slots
+            instance_seats: Number of instance slots (capacity only, not billed)
             ai_addon: Whether to include AI addon (default: False)
             trial_days: Trial period in days (default: 0)
 
@@ -356,12 +360,6 @@ class StripeService:
                 items.append({
                     'price': plan.stripe_price_id_user,
                     'quantity': user_seats,
-                })
-
-            if plan.stripe_price_id_instance:
-                items.append({
-                    'price': plan.stripe_price_id_instance,
-                    'quantity': instance_seats,
                 })
 
             if ai_addon and plan.stripe_price_id_ai:
