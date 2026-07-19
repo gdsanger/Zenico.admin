@@ -157,20 +157,76 @@ class StripeConfig(models.Model):
             return bool(self.live_secret_key and self.live_webhook_secret)
         return bool(self.test_secret_key and self.test_webhook_secret)
 
+    # Expected prefix per field, used both to reject mismatched keys on save
+    # (see _validate_key_prefix) and to flag already-stored mismatches in the UI
+    # (see key_prefix_warnings). Stripe issues distinct key families per mode, so
+    # a key in the wrong field silently talks to the wrong Stripe environment.
+    KEY_PREFIXES = {
+        'test_secret_key': 'sk_test_',
+        'test_publishable_key': 'pk_test_',
+        'test_webhook_secret': 'whsec_',
+        'live_secret_key': 'sk_live_',
+        'live_publishable_key': 'pk_live_',
+        'live_webhook_secret': 'whsec_',
+    }
+
+    @staticmethod
+    def _validate_key_prefix(field_name: str, plaintext: str):
+        """Raise ValidationError if plaintext doesn't start with the field's expected prefix."""
+        expected_prefix = StripeConfig.KEY_PREFIXES[field_name]
+        if plaintext and not plaintext.startswith(expected_prefix):
+            raise ValidationError(
+                f'{field_name}: erwartet Präfix "{expected_prefix}", erhalten "{plaintext[:12]}…"'
+            )
+
+    def key_prefix_warnings(self) -> dict:
+        """
+        Return {field_name: message} for stored values that don't match their
+        expected prefix. Covers data written before the validation guard existed.
+        """
+        warnings = {}
+        values = {
+            'test_secret_key': self.get_test_secret_key(),
+            'test_publishable_key': self.test_publishable_key,
+            'test_webhook_secret': self.get_test_webhook_secret(),
+            'live_secret_key': self.get_live_secret_key(),
+            'live_publishable_key': self.live_publishable_key,
+            'live_webhook_secret': self.get_live_webhook_secret(),
+        }
+        for field_name, value in values.items():
+            expected_prefix = self.KEY_PREFIXES[field_name]
+            if value and not value.startswith(expected_prefix):
+                warnings[field_name] = f'Erwartet Präfix "{expected_prefix}"'
+        return warnings
+
     def set_test_secret_key(self, plaintext: str):
-        """Encrypt and store test secret key."""
+        """Validate and encrypt test secret key."""
+        self._validate_key_prefix('test_secret_key', plaintext)
         self.test_secret_key = self._encrypt(plaintext) if plaintext else ''
 
+    def set_test_publishable_key(self, plaintext: str):
+        """Validate and store test publishable key."""
+        self._validate_key_prefix('test_publishable_key', plaintext)
+        self.test_publishable_key = plaintext
+
     def set_test_webhook_secret(self, plaintext: str):
-        """Encrypt and store test webhook secret."""
+        """Validate and encrypt test webhook secret."""
+        self._validate_key_prefix('test_webhook_secret', plaintext)
         self.test_webhook_secret = self._encrypt(plaintext) if plaintext else ''
 
     def set_live_secret_key(self, plaintext: str):
-        """Encrypt and store live secret key."""
+        """Validate and encrypt live secret key."""
+        self._validate_key_prefix('live_secret_key', plaintext)
         self.live_secret_key = self._encrypt(plaintext) if plaintext else ''
 
+    def set_live_publishable_key(self, plaintext: str):
+        """Validate and store live publishable key."""
+        self._validate_key_prefix('live_publishable_key', plaintext)
+        self.live_publishable_key = plaintext
+
     def set_live_webhook_secret(self, plaintext: str):
-        """Encrypt and store live webhook secret."""
+        """Validate and encrypt live webhook secret."""
+        self._validate_key_prefix('live_webhook_secret', plaintext)
         self.live_webhook_secret = self._encrypt(plaintext) if plaintext else ''
 
     def get_test_secret_key(self) -> str:

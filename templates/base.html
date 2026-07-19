@@ -149,6 +149,13 @@
             <h1 class="topbar-title">{% block page_title %}Dashboard{% endblock %}</h1>
 
             <div class="topbar-actions">
+                {% if stripe_active_mode %}
+                <a href="{% url 'ui:stripe_config' %}" class="badge {% if stripe_active_mode == 'live' %}bg-danger{% else %}bg-secondary{% endif %}" title="Aktiver Stripe-Modus">
+                    <i class="ti {% if stripe_active_mode == 'live' %}ti-bolt{% else %}ti-flask{% endif %}"></i>
+                    Stripe: {{ stripe_active_mode|upper }}
+                </a>
+                {% endif %}
+
                 <div class="topbar-date">
                     {% now "d. F Y" %}
                 </div>

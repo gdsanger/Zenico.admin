@@ -5,8 +5,73 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
 from decimal import Decimal
-from .models import StripeEvent, Invoice
+from cryptography.fernet import Fernet
+from .models import StripeConfig, StripeEvent, Invoice
 from customers.models import Customer, Plan, Subscription
+
+
+@override_settings(FIELD_ENCRYPTION_KEY=Fernet.generate_key().decode())
+class StripeConfigKeyPrefixValidationTest(TestCase):
+    """
+    Guards against sk_live_/sk_test_ (and pk_/whsec_) keys ending up in the
+    wrong mode's field, which caused a test-mode config to fire real charges
+    (see #912).
+    """
+
+    def setUp(self):
+        self.config = StripeConfig.get()
+
+    def test_rejects_live_secret_key_in_test_field(self):
+        with self.assertRaises(ValidationError):
+            self.config.set_test_secret_key('sk_live_realmoney123')
+
+    def test_rejects_test_secret_key_in_live_field(self):
+        with self.assertRaises(ValidationError):
+            self.config.set_live_secret_key('sk_test_fake123')
+
+    def test_rejects_wrong_publishable_key_prefix(self):
+        with self.assertRaises(ValidationError):
+            self.config.set_test_publishable_key('pk_live_realmoney123')
+        with self.assertRaises(ValidationError):
+            self.config.set_live_publishable_key('pk_test_fake123')
+
+    def test_rejects_webhook_secret_without_whsec_prefix(self):
+        with self.assertRaises(ValidationError):
+            self.config.set_test_webhook_secret('not_a_webhook_secret')
+        with self.assertRaises(ValidationError):
+            self.config.set_live_webhook_secret('not_a_webhook_secret')
+
+    def test_accepts_correctly_prefixed_keys(self):
+        self.config.set_test_secret_key('sk_test_fake123')
+        self.config.set_test_publishable_key('pk_test_fake123')
+        self.config.set_test_webhook_secret('whsec_fake123')
+        self.config.set_live_secret_key('sk_live_fake123')
+        self.config.set_live_publishable_key('pk_live_fake123')
+        self.config.set_live_webhook_secret('whsec_fake456')
+        self.config.save()
+
+        self.assertEqual(self.config.get_test_secret_key(), 'sk_test_fake123')
+        self.assertEqual(self.config.get_live_secret_key(), 'sk_live_fake123')
+
+    def test_empty_value_does_not_raise(self):
+        self.config.set_test_secret_key('')
+        self.config.set_live_secret_key('')
+
+    def test_key_prefix_warnings_flags_mismatched_stored_values(self):
+        # Simulate data written before the validation guard existed by
+        # bypassing the setters (which now reject this at write time).
+        self.config.test_secret_key = StripeConfig._encrypt('sk_live_realmoney123')
+        self.config.save()
+
+        warnings = self.config.key_prefix_warnings()
+        self.assertIn('test_secret_key', warnings)
+
+    def test_key_prefix_warnings_empty_when_correct(self):
+        self.config.set_test_secret_key('sk_test_fake123')
+        self.config.set_live_secret_key('sk_live_fake123')
+        self.config.save()
+
+        self.assertEqual(self.config.key_prefix_warnings(), {})
 
 
 class StripeEventModelTest(TestCase):

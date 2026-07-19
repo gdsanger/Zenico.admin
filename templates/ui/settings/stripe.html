@@ -27,7 +27,12 @@
         <!-- Mode Selection -->
         <div class="card mb-4">
             <div class="card-header">
-                <h3 class="card-title">Modus</h3>
+                <h3 class="card-title">
+                    Modus
+                    <span class="badge {% if mode == 'live' %}bg-danger{% else %}bg-secondary{% endif %} ms-2">
+                        Aktiv: {{ mode|upper }}
+                    </span>
+                </h3>
             </div>
             <div class="card-body">
                 <form method="post" action="{% url 'ui:stripe_config_save' %}" id="mode-form">
@@ -51,6 +56,13 @@
                         <i class="ti ti-alert-triangle"></i> <strong>Live-Modus aktiv</strong> — Echte Zahlungen werden verarbeitet
                     </div>
                     {% endif %}
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle"></i>
+                        Stripe-Preise (<code>stripe_price_id_*</code>) sind pro Modus getrennt hinterlegt.
+                        Beim Wechsel zwischen Test- und Live-Modus muss die
+                        <a href="{% url 'ui:stripe_plan_wiring' %}">Plan-Verdrahtung</a> für den neuen Modus geprüft
+                        und ggf. neu gesetzt werden.
+                    </div>
                     <button type="submit" class="btn btn-primary">
                         <i class="ti ti-check"></i> Speichern
                     </button>
@@ -66,8 +78,13 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Secret Key</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ test_secret_key_masked }}</span>
+                        {% if key_prefix_warnings.test_secret_key %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.test_secret_key }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_secret')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>
@@ -85,8 +102,13 @@
 
                 <div class="mb-3">
                     <label class="form-label">Publishable Key</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ test_publishable_key|default:"Nicht konfiguriert" }}</span>
+                        {% if key_prefix_warnings.test_publishable_key %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.test_publishable_key }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_pub')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>
@@ -104,8 +126,13 @@
 
                 <div class="mb-3">
                     <label class="form-label">Webhook Secret</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ test_webhook_secret_masked }}</span>
+                        {% if key_prefix_warnings.test_webhook_secret %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.test_webhook_secret }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('test_webhook')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>
@@ -131,8 +158,13 @@
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label">Secret Key</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ live_secret_key_masked }}</span>
+                        {% if key_prefix_warnings.live_secret_key %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.live_secret_key }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_secret')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>
@@ -150,8 +182,13 @@
 
                 <div class="mb-3">
                     <label class="form-label">Publishable Key</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ live_publishable_key|default:"Nicht konfiguriert" }}</span>
+                        {% if key_prefix_warnings.live_publishable_key %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.live_publishable_key }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_pub')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>
@@ -169,8 +206,13 @@
 
                 <div class="mb-3">
                     <label class="form-label">Webhook Secret</label>
-                    <div class="d-flex gap-2">
+                    <div class="d-flex gap-2 align-items-center">
                         <span class="key-display">{{ live_webhook_secret_masked }}</span>
+                        {% if key_prefix_warnings.live_webhook_secret %}
+                        <span class="badge bg-danger" title="{{ key_prefix_warnings.live_webhook_secret }}">
+                            <i class="ti ti-alert-triangle"></i> Falsches Präfix
+                        </span>
+                        {% endif %}
                         <button type="button" class="btn btn-sm btn-outline-primary" onclick="editKey('live_webhook')">
                             <i class="ti ti-edit"></i> Ändern
                         </button>

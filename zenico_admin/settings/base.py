@@ -83,6 +83,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'ui.context_processors.alert_count',
                 'ui.context_processors.pending_education_count',
+                'ui.context_processors.stripe_active_mode',
             ],
         },
     },

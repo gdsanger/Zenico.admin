@@ -34,3 +34,17 @@ def pending_education_count(request):
         count = 0
 
     return {'pending_education_count': count}
+
+
+def stripe_active_mode(request):
+    """
+    Context processor exposing the active Stripe mode (test/live) sitewide, so
+    "I thought I was in test mode" can't happen silently (see #912).
+    """
+    if request.user.is_authenticated and request.user.role in ['superadmin', 'billing']:
+        from billing.models import StripeConfig
+        mode = StripeConfig.get().mode
+    else:
+        mode = None
+
+    return {'stripe_active_mode': mode}
