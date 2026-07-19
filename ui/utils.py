@@ -21,10 +21,9 @@ def calculate_mrr():
             try:
                 # Calculate MRR for this subscription
                 user_mrr = subscription.user_seats_total * subscription.plan.price_per_user
-                instance_mrr = subscription.instance_seats_total * subscription.plan.price_per_instance
                 ai_mrr = subscription.plan.price_ai_addon if subscription.ai_addon_active else Decimal('0.00')
 
-                mrr += user_mrr + instance_mrr + ai_mrr
+                mrr += user_mrr + ai_mrr
             except (AttributeError, TypeError) as e:
                 # Log but continue if a single subscription has issues
                 logger.warning(f"Error calculating MRR for subscription {subscription.id}: {e}")
@@ -46,10 +45,9 @@ def calculate_mrr_for_customer(customer):
         return Decimal('0.00')
 
     user_mrr = subscription.user_seats_total * subscription.plan.price_per_user
-    instance_mrr = subscription.instance_seats_total * subscription.plan.price_per_instance
     ai_mrr = subscription.plan.price_ai_addon if subscription.ai_addon_active else Decimal('0.00')
 
-    return user_mrr + instance_mrr + ai_mrr
+    return user_mrr + ai_mrr
 
 
 def calculate_customer_growth(timeframe_days=30):

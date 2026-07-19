@@ -25,7 +25,6 @@ class PlanModelTest(TestCase):
             'max_users_per_instance': 10,
             'max_instances': 5,
             'price_per_user': Decimal('19.00'),
-            'price_per_instance': Decimal('5.00'),
             'price_ai_addon': Decimal('7.50'),
             'ai_addon_available': True,
             'is_active': True,
@@ -57,7 +56,6 @@ class PlanModelTest(TestCase):
         self.assertEqual(minimal_plan.max_users_per_instance, 0)
         self.assertEqual(minimal_plan.max_instances, 0)
         self.assertEqual(minimal_plan.price_per_user, Decimal('0.00'))
-        self.assertEqual(minimal_plan.price_per_instance, Decimal('0.00'))
         self.assertEqual(minimal_plan.price_ai_addon, Decimal('0.00'))
         self.assertFalse(minimal_plan.ai_addon_available)
         self.assertTrue(minimal_plan.is_active)
@@ -110,12 +108,10 @@ class PlanModelTest(TestCase):
         """Test that pricing fields accept decimal values correctly."""
         plan = Plan.objects.filter(name='enterprise').first()
         plan.price_per_user = Decimal('25.99')
-        plan.price_per_instance = Decimal('10.50')
         plan.price_ai_addon = Decimal('15.00')
         plan.save()
         plan.refresh_from_db()
         self.assertEqual(plan.price_per_user, Decimal('25.99'))
-        self.assertEqual(plan.price_per_instance, Decimal('10.50'))
         self.assertEqual(plan.price_ai_addon, Decimal('15.00'))
 
 
@@ -142,9 +138,13 @@ class PlanDataMigrationTest(TestCase):
 
         for plan in plans:
             self.assertEqual(plan.price_per_user, Decimal('19.00'))
-            self.assertEqual(plan.price_per_instance, Decimal('5.00'))
             self.assertEqual(plan.price_ai_addon, Decimal('7.50'))
             self.assertTrue(plan.ai_addon_available)
+
+    def test_instance_pricing_zeroed(self):
+        """The retired per-instance price is zeroed on all plans by the data migration."""
+        for plan in Plan.objects.all():
+            self.assertEqual(plan.price_per_instance, Decimal('0.00'))
 
     def test_initial_plans_unlimited_limits(self):
         """Test that initial plans have unlimited users and instances (0 = unlimited)."""

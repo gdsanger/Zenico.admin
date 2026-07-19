@@ -271,7 +271,6 @@ class CouponRedemptionModelTest(TestCase):
             defaults={
                 'display_name': 'Standard',
                 'price_per_user': Decimal('5.00'),
-                'price_per_instance': Decimal('30.00')
             }
         )
 
@@ -344,7 +343,6 @@ class CouponServiceTest(TestCase):
             defaults={
                 'display_name': 'Standard',
                 'price_per_user': Decimal('5.00'),
-                'price_per_instance': Decimal('30.00')
             }
         )
 
