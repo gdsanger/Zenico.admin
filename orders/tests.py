@@ -121,6 +121,19 @@ class OrderCreateAPITest(TestCase):
         self.assertNotIn('price_instance_123', prices)
 
     @patch('orders.services.get_stripe')
+    def test_automatic_tax_enabled_on_session(self, mock_get_stripe):
+        """Stripe Tax greift nicht automatisch bei per-API-Sessions — muss explizit an sein (#918)."""
+        stripe_mock, _ = _mock_stripe()
+        mock_get_stripe.return_value = stripe_mock
+
+        self._post(self.valid_payload)
+
+        _, kwargs = stripe_mock.checkout.Session.create.call_args
+        self.assertEqual(kwargs['automatic_tax'], {'enabled': True})
+        self.assertEqual(kwargs['billing_address_collection'], 'required')
+        self.assertEqual(kwargs['tax_id_collection'], {'enabled': True})
+
+    @patch('orders.services.get_stripe')
     def test_order_creation_writes_audit_log(self, mock_get_stripe):
         stripe_mock, _ = _mock_stripe()
         mock_get_stripe.return_value = stripe_mock
