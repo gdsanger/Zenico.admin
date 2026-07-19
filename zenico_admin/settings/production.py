@@ -11,6 +11,8 @@ DEBUG = False
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '').split(',')
 CSRF_TRUSTED_ORIGINS = [
     "https://admin.zenico.app",
+    "https://zenico.app",
+    "https://www.zenico.app",
     # optional Wildcard, falls mehrere Subdomains:
     # "https://*.angermeier.net",
 ]

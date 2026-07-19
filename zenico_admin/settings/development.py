@@ -10,10 +10,11 @@ DEBUG = True
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]','admin.zenico.app']
 CSRF_TRUSTED_ORIGINS = [
     "https://admin.zenico.app",
+    "https://zenico.app",
+    "https://www.zenico.app",
     # optional Wildcard, falls mehrere Subdomains:
     # "https://*.angermeier.net",
 ]
-
 # Development-specific apps
 INSTALLED_APPS += [
     # Add development-specific apps here
