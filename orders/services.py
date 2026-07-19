@@ -104,6 +104,14 @@ class OrderService:
         `stripe_price_id_instance` fließt bewusst nicht ein.
         Setzt `metadata.order_id`, den der Webhook zum Anlegen von Kunde und
         Instanz benötigt. Speichert die Session-ID auf der Order.
+
+        `automatic_tax` aktiviert Stripe Tax für diese Session (greift NICHT
+        automatisch bei per API erstellten Sessions, vgl. #918); dafür
+        braucht Stripe die Rechnungsadresse (`billing_address_collection`)
+        und optional die USt-IdNr für EU-B2B-Reverse-Charge
+        (`tax_id_collection`). Ein `customer_update` entfällt hier bewusst,
+        da die Session keinen bestehenden `customer` referenziert, sondern
+        nur `customer_email` — Stripe legt den Customer erst im Webhook an.
         """
         plan = order.plan
         stripe_api = get_stripe()
@@ -140,6 +148,9 @@ class OrderService:
             'metadata': metadata,
             'subscription_data': {'metadata': metadata},
             'client_reference_id': str(order.id),
+            'automatic_tax': {'enabled': True},
+            'billing_address_collection': 'required',
+            'tax_id_collection': {'enabled': True},
         }
 
         session = stripe_api.checkout.Session.create(**session_params)
