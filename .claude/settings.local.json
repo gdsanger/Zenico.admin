@@ -1,11 +1,31 @@
 {
-  "hasTrustDialogAccepted": true,
   "permissions": {
     "allow": [
-      "Read",
-      "Edit",
-      "Write",
-      "Bash(git*)"
+      "Bash(git checkout *)",
+      "Read(//Users/anger/Claude/Projects/Zenico/**)",
+      "Bash(git push *)",
+      "Bash(gh pr create --draft --title 'feat: Order API \\(POST /api/orders/\\) mit Stripe Checkout' --body ' *)",
+      "Bash(venv/bin/python3 manage.py test orders.test_checkout_webhook orders.tests -v1)",
+      "Bash(./venv/bin/python manage.py test orders.test_checkout_webhook orders.tests -v1)",
+      "Bash(pwd; file *)",
+      "Bash(/usr/bin/python3 -c \"import django; print\\('django', django.get_version\\(\\)\\)\")",
+      "Bash(echo \"exit: $?\")",
+      "Read(//Users/anger/Claude/Projects/Zenico/Zenico.admin/venv/bin/**)",
+      "Bash(/usr/bin/python3 --version)",
+      "Bash(./venv/bin/python manage.py test orders.test_checkout_webhook orders.tests -v2)",
+      "Bash(./venv/bin/python manage.py test orders.test_checkout_webhook -v2)",
+      "Bash(./venv/bin/python manage.py test orders billing customers instances -v1)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'feat: handle Stripe checkout.session.completed/expired webhook *)",
+      "Bash(gh pr *)",
+      "Bash(git fetch *)",
+      "Bash(git ls-tree *)",
+      "Bash(grep -c \"^orders$\")",
+      "Bash(git pull *)",
+      "Bash(git -C /Users/anger/Claude/Projects/Zenico/Zenico.admin rev-parse --show-toplevel)",
+      "Bash(git -C /Users/anger/Claude/Projects/Zenico/Zenico.admin status --short)",
+      "Bash(git -C /Users/anger/Claude/Projects/Zenico rev-parse --show-toplevel)",
+      "Bash(git commit -q -m 'feat: add public GET /api/orders/check-slug/ endpoint *)"
     ]
   }
 }
