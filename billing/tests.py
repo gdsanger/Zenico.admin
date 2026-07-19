@@ -844,3 +844,124 @@ class StripeWebhookHandlerTests(TestCase):
                     call_kwargs = mock_send.call_args.kwargs if hasattr(mock_send.call_args, 'kwargs') else mock_send.call_args[1]
                     self.assertEqual(call_kwargs['to'], self.customer.billing_email)
                     self.assertEqual(call_kwargs['template'], 'payment_failed')
+
+    def test_webhook_invoice_paid_creates_invoice(self):
+        """Test that invoice.paid creates a local Invoice record."""
+        from core.services.webhook import StripeWebhookHandler
+        from unittest.mock import patch
+
+        mock_event = {
+            'id': 'evt_invoice_paid',
+            'type': 'invoice.paid',
+            'data': {
+                'object': {
+                    'id': 'in_test_paid1',
+                    'customer': self.customer.stripe_customer_id,
+                    'subscription': None,
+                    'amount_due': 4900,
+                    'amount_paid': 4900,
+                    'currency': 'eur',
+                    'status': 'paid',
+                    'hosted_invoice_url': 'https://stripe.com/invoice/paid1',
+                    'invoice_pdf': 'https://stripe.com/invoice/paid1.pdf',
+                }
+            }
+        }
+
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            StripeWebhookHandler.handle(json.dumps(mock_event).encode(), 'sig')
+
+        invoice = Invoice.objects.get(stripe_invoice_id='in_test_paid1')
+        self.assertEqual(invoice.customer, self.customer)
+        self.assertEqual(invoice.status, 'paid')
+        self.assertEqual(invoice.amount_paid, Decimal('49.00'))
+
+    def test_webhook_invoice_payment_paid_fetches_invoice_and_creates_invoice(self):
+        """
+        Test that invoice_payment.paid (the event the newer Stripe API actually
+        sends instead of invoice.paid) loads the full invoice via the API and
+        creates a local Invoice record from it.
+        """
+        from core.services.webhook import StripeWebhookHandler
+        from unittest.mock import patch, MagicMock
+
+        mock_event = {
+            'id': 'evt_invoice_payment_paid',
+            'type': 'invoice_payment.paid',
+            'data': {
+                'object': {
+                    'id': 'inpay_test1',
+                    'object': 'invoice_payment',
+                    'invoice': 'in_test_paid2',
+                    'amount_paid': 4900,
+                    'currency': 'eur',
+                    'status': 'paid',
+                    'payment': {'type': 'payment_intent', 'payment_intent': 'pi_test1'},
+                }
+            }
+        }
+
+        retrieved_invoice = MagicMock()
+        retrieved_invoice.to_dict.return_value = {
+            'id': 'in_test_paid2',
+            'customer': self.customer.stripe_customer_id,
+            'subscription': None,
+            'amount_due': 4900,
+            'amount_paid': 4900,
+            'currency': 'eur',
+            'status': 'paid',
+            'hosted_invoice_url': 'https://stripe.com/invoice/paid2',
+            'invoice_pdf': 'https://stripe.com/invoice/paid2.pdf',
+        }
+        mock_stripe_client = MagicMock()
+        mock_stripe_client.Invoice.retrieve.return_value = retrieved_invoice
+
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            with patch('core.services.webhook.get_stripe', return_value=mock_stripe_client):
+                StripeWebhookHandler.handle(json.dumps(mock_event).encode(), 'sig')
+
+        mock_stripe_client.Invoice.retrieve.assert_called_once_with('in_test_paid2')
+        invoice = Invoice.objects.get(stripe_invoice_id='in_test_paid2')
+        self.assertEqual(invoice.customer, self.customer)
+        self.assertEqual(invoice.status, 'paid')
+
+    def test_webhook_resend_clears_error_after_previous_failure(self):
+        """
+        Test that a StripeEvent no longer shows as failed once a resend
+        processes it successfully (error_message must be cleared, not just
+        processed set to True).
+        """
+        from core.services.webhook import StripeWebhookHandler
+        from billing.models import StripeEvent
+        from unittest.mock import patch
+
+        mock_event = {
+            'id': 'evt_resend_test',
+            'type': 'customer.updated',
+            'data': {
+                'object': {
+                    'id': self.customer.stripe_customer_id,
+                    'email': 'resend@webhook.com',
+                }
+            }
+        }
+        payload = json.dumps(mock_event).encode()
+
+        with patch('stripe.Webhook.construct_event', return_value=mock_event):
+            with patch.object(StripeWebhookHandler, '_dispatch', side_effect=RuntimeError('boom')):
+                StripeWebhookHandler.handle(payload, 'sig')
+
+            db_event = StripeEvent.objects.get(stripe_event_id='evt_resend_test')
+            self.assertFalse(db_event.processed)
+            self.assertIn('boom', db_event.error_message)
+
+            # Resend after the underlying bug is fixed: dispatch now succeeds.
+            StripeWebhookHandler.handle(payload, 'sig')
+
+        db_event.refresh_from_db()
+        self.assertTrue(db_event.processed)
+        self.assertEqual(db_event.error_message, '')
+        self.assertNotIn(
+            db_event,
+            StripeEvent.objects.filter(processed=True).exclude(error_message=''),
+        )
