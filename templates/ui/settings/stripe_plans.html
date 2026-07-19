@@ -17,6 +17,15 @@
             </button>
         </div>
 
+        <div class="alert {% if mode == 'live' %}alert-danger{% else %}alert-secondary{% endif %} d-flex align-items-center">
+            <i class="ti {% if mode == 'live' %}ti-bolt{% else %}ti-flask{% endif %} me-2"></i>
+            <div>
+                Verdrahtung gilt für den aktuell aktiven Modus: <strong>{{ mode|upper }}</strong>.
+                Stripe-Produkte/-Preise existieren getrennt pro Modus — nach einem Moduswechsel
+                müssen die Zuordnungen unten für den neuen Modus geprüft und ggf. neu gesetzt werden.
+            </div>
+        </div>
+
         {% if error %}
         <div class="alert alert-danger">
             <i class="ti ti-alert-triangle"></i> {{ error }}

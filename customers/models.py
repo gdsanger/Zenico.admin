@@ -73,6 +73,11 @@ class Plan(models.Model):
         default=False,
         verbose_name='AI addon available'
     )
+    # Single-set, not a test/live pair: Stripe products/prices are separate
+    # objects per mode (StripeConfig.mode), so a given ID here is only valid
+    # for whichever mode it was wired under. Switching StripeConfig.mode
+    # test<->live does NOT repoint these — re-check/re-wire via the
+    # Plan-Verdrahtung screen after every mode switch (see #912).
     stripe_product_id = models.CharField(
         max_length=255,
         blank=True,

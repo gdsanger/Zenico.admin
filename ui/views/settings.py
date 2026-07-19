@@ -11,6 +11,7 @@ from django.views.generic import TemplateView
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.shortcuts import render
+from django.core.exceptions import ValidationError
 
 from billing.models import StripeConfig
 from billing.stripe_import import StripeImportService
@@ -50,6 +51,7 @@ class StripeConfigView(TemplateView):
 
         context['mode'] = config.mode
         context['is_configured'] = config.is_configured
+        context['key_prefix_warnings'] = config.key_prefix_warnings()
 
         return context
 
@@ -64,6 +66,10 @@ class StripePlanWiringView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        # Wiring is always against the currently active mode's Stripe account —
+        # switching modes later requires re-checking/re-wiring prices (see #912).
+        context['mode'] = StripeConfig.get().mode
 
         # Get all plans
         plans = Plan.objects.all().order_by('name')
@@ -126,7 +132,7 @@ def stripe_config_save(request):
 
         test_publishable = request.POST.get('test_publishable_key', '').strip()
         if test_publishable:
-            config.test_publishable_key = test_publishable
+            config.set_test_publishable_key(test_publishable)
 
         test_webhook = request.POST.get('test_webhook_secret', '').strip()
         if test_webhook:
@@ -139,7 +145,7 @@ def stripe_config_save(request):
 
         live_publishable = request.POST.get('live_publishable_key', '').strip()
         if live_publishable:
-            config.live_publishable_key = live_publishable
+            config.set_live_publishable_key(live_publishable)
 
         live_webhook = request.POST.get('live_webhook_secret', '').strip()
         if live_webhook:
@@ -153,6 +159,13 @@ def stripe_config_save(request):
             'success': True,
             'message': 'Konfiguration gespeichert'
         })
+
+    except ValidationError as e:
+        logger.warning(f'Stripe config validation failed: {e}')
+        return JsonResponse({
+            'success': False,
+            'error': '; '.join(e.messages)
+        }, status=400)
 
     except Exception as e:
         logger.exception(f'Failed to save Stripe config: {e}')
