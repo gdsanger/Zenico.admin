@@ -1,4 +1,6 @@
-from django.test import TestCase, override_settings
+import json
+
+from django.test import TestCase
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
@@ -730,16 +732,18 @@ class StripeWebhookHandlerTests(TestCase):
         }
 
         # Mock the signature verification
+        payload = json.dumps(mock_event).encode()
         with patch('stripe.Webhook.construct_event', return_value=mock_event):
             # First call - should process
-            StripeWebhookHandler.handle(b'payload', 'sig')
+            StripeWebhookHandler.handle(payload, 'sig')
 
-            # Check event was created
+            # Check event was created with the raw payload stored as a plain dict
             db_event = StripeEvent.objects.get(stripe_event_id='evt_idempotent_test')
             self.assertTrue(db_event.processed)
+            self.assertEqual(db_event.payload, mock_event)
 
             # Second call - should skip (idempotent)
-            StripeWebhookHandler.handle(b'payload', 'sig')
+            StripeWebhookHandler.handle(payload, 'sig')
 
             # Event should still be processed exactly once
             self.assertEqual(StripeEvent.objects.filter(stripe_event_id='evt_idempotent_test').count(), 1)
@@ -799,7 +803,7 @@ class StripeWebhookHandlerTests(TestCase):
         }
 
         with patch('stripe.Webhook.construct_event', return_value=mock_event):
-            StripeWebhookHandler.handle(b'payload', 'sig')
+            StripeWebhookHandler.handle(json.dumps(mock_event).encode(), 'sig')
 
         # Check instances are suspended
         instance1.refresh_from_db()
@@ -833,7 +837,7 @@ class StripeWebhookHandlerTests(TestCase):
                     mock_send.return_value = True
                     mock_sync.return_value = None
 
-                    StripeWebhookHandler.handle(b'payload', 'sig')
+                    StripeWebhookHandler.handle(json.dumps(mock_event).encode(), 'sig')
 
                     # Verify email was sent
                     mock_send.assert_called_once()
