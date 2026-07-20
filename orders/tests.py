@@ -32,6 +32,8 @@ class OrderCreateAPITest(TestCase):
         self.plan.stripe_price_id_user = 'price_user_123'
         self.plan.stripe_price_id_instance = 'price_instance_123'
         self.plan.stripe_price_id_ai = 'price_ai_123'
+        self.plan.stripe_price_id_user_yearly = 'price_user_yearly_123'
+        self.plan.stripe_price_id_ai_yearly = 'price_ai_yearly_123'
         self.plan.save()
 
         self.valid_payload = {
@@ -107,6 +109,51 @@ class OrderCreateAPITest(TestCase):
         prices = [li['price'] for li in line_items]
         self.assertEqual(len(line_items), 1)
         self.assertNotIn('price_ai_123', prices)
+
+    @patch('orders.services.get_stripe')
+    def test_default_billing_interval_uses_monthly_prices(self, mock_get_stripe):
+        stripe_mock, _ = _mock_stripe()
+        mock_get_stripe.return_value = stripe_mock
+
+        response = self._post(self.valid_payload)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        order = Order.objects.get(id=response.json()['order_id'])
+        self.assertEqual(order.billing_interval, 'monthly')
+
+        _, kwargs = stripe_mock.checkout.Session.create.call_args
+        prices = {li['price'] for li in kwargs['line_items']}
+        self.assertEqual(prices, {'price_user_123', 'price_ai_123'})
+
+    @patch('orders.services.get_stripe')
+    def test_yearly_billing_interval_uses_yearly_prices(self, mock_get_stripe):
+        stripe_mock, _ = _mock_stripe()
+        mock_get_stripe.return_value = stripe_mock
+
+        payload = {**self.valid_payload, 'billing_interval': 'yearly'}
+        response = self._post(payload)
+
+        self.assertEqual(response.status_code, 201, response.content)
+        order = Order.objects.get(id=response.json()['order_id'])
+        self.assertEqual(order.billing_interval, 'yearly')
+
+        _, kwargs = stripe_mock.checkout.Session.create.call_args
+        prices = {li['price'] for li in kwargs['line_items']}
+        self.assertEqual(prices, {'price_user_yearly_123', 'price_ai_yearly_123'})
+        self.assertEqual(kwargs['metadata']['billing_interval'], 'yearly')
+
+    def test_invalid_billing_interval_returns_400(self):
+        response = self._post({**self.valid_payload, 'billing_interval': 'weekly'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('billing_interval', response.json()['errors'])
+
+    def test_yearly_billing_interval_without_yearly_price_returns_400(self):
+        self.plan.stripe_price_id_user_yearly = ''
+        self.plan.save()
+
+        response = self._post({**self.valid_payload, 'billing_interval': 'yearly'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('billing_interval', response.json()['errors'])
 
     @patch('orders.services.get_stripe')
     def test_instance_price_never_included_even_if_configured(self, mock_get_stripe):
