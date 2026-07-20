@@ -5,9 +5,16 @@ Vielen Dank für Ihre Bestellung!
 
 Sehr geehrte/r {{ contact_name }},
 
-wir haben Ihre Zahlung erhalten und Ihre Bestellung für {{ company_name }} ist bestätigt.
+Ihre Bestellung für {{ company_name }} ist bestätigt.
 Ihre Zenico-Instanz wird jetzt automatisch bereitgestellt.
 
+{% if trial_end_date %}
+14 TAGE KOSTENLOS TESTEN:
+Ihre Testphase läuft bis zum {{ trial_end_date }}. Danach wird Ihre hinterlegte
+Zahlungsmethode automatisch mit {{ monthly_price }} {{ currency }}/Monat belastet —
+jederzeit kündbar.
+
+{% endif %}
 Ihre zukünftige Instanz-URL:
 {{ instance_url }}
 

@@ -241,6 +241,11 @@ ORDER_SUCCESS_URL = os.getenv(
 )
 ORDER_CANCEL_URL = os.getenv('ORDER_CANCEL_URL', f'{FRONTEND_BASE_URL}/bestellung/abbruch/')
 
+# Trial-Periode für neue Bestellungen (vgl. #920): mit Kreditkarte, damit die
+# Instanz sofort provisioniert werden kann, ohne Docker-Ressourcen an
+# Wegwerf-Trials ohne Zahlungsabsicht zu verschwenden.
+TRIAL_PERIOD_DAYS = int(os.getenv('TRIAL_PERIOD_DAYS', '14'))
+
 
 # Field Encryption
 # Used for encrypting sensitive fields like Stripe API keys

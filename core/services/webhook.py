@@ -8,6 +8,8 @@ via StripeEvent model, and dispatches to appropriate handler methods.
 import json
 import logging
 import json
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from typing import Optional
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -182,6 +184,7 @@ class StripeWebhookHandler:
             'customer.subscription.created': cls._handle_subscription_created,
             'customer.subscription.updated': cls._handle_subscription_updated,
             'customer.subscription.deleted': cls._handle_subscription_deleted,
+            'customer.subscription.trial_will_end': cls._handle_subscription_trial_will_end,
             'invoice.paid': cls._handle_invoice_paid,
             'invoice_payment.paid': cls._handle_invoice_payment_paid,
             'invoice.payment_failed': cls._handle_invoice_payment_failed,
@@ -223,6 +226,14 @@ class StripeWebhookHandler:
 
         return order
 
+    @staticmethod
+    def _monthly_price(subscription: Subscription) -> str:
+        """Monatspreis der Subscription (Plan-Preis je Seat + optionales KI-Addon), formatiert."""
+        total = subscription.plan.price_per_user * subscription.user_seats_total
+        if subscription.ai_addon_active:
+            total += subscription.plan.price_ai_addon
+        return f'{total:.2f}'
+
     @classmethod
     def _handle_checkout_session_completed(cls, event: stripe.Event, db_event: StripeEvent) -> None:
         """
@@ -251,6 +262,18 @@ class StripeWebhookHandler:
         stripe_customer_id = session.get('customer') or None
         stripe_subscription_id = session.get('subscription') or None
 
+        # Trial-Status lokal ableiten statt per zusätzlichem Stripe-Fetch: Der
+        # Checkout hat den Trial gerade erst über `trial_period_days` gestartet
+        # (vgl. #920, orders/services.py), Trial-Start == jetzt ist also exakt.
+        # `customer.subscription.updated` synchronisiert den Status danach
+        # ohnehin bei jeder Änderung (z. B. Trial-Ende, vgl. `_handle_subscription_updated`).
+        if settings.TRIAL_PERIOD_DAYS > 0:
+            initial_stripe_status = 'trialing'
+            trial_end = timezone.now() + timedelta(days=settings.TRIAL_PERIOD_DAYS)
+        else:
+            initial_stripe_status = 'active'
+            trial_end = None
+
         # Slug-Kollision zum Zahlungszeitpunkt (Race seit Bestellung): Geld ist
         # bereits geflossen — Order als failed markieren und Admin informieren,
         # statt still einen halben Kunden anzulegen.
@@ -274,6 +297,8 @@ class StripeWebhookHandler:
                 instance_seats=1,
                 stripe_subscription_id=stripe_subscription_id or '',
                 ai_addon=order.ai_addon,
+                stripe_status=initial_stripe_status,
+                trial_end=trial_end,
                 contact_phone=order.contact_phone,
                 billing_address=order.billing_address,
                 billing_city=order.billing_city,
@@ -327,6 +352,9 @@ class StripeWebhookHandler:
                 'company_name': order.company_name,
                 'slug': customer.slug,
                 'instance_url': f'https://{customer.slug}.zenico.app',
+                'trial_end_date': trial_end.strftime('%d.%m.%Y') if trial_end else '',
+                'monthly_price': cls._monthly_price(subscription),
+                'currency': 'EUR',
             },
             subject_override='Ihre Zenico-Bestellung ist bestätigt',
         )
@@ -433,14 +461,26 @@ class StripeWebhookHandler:
         old_status = subscription.stripe_status
         new_status = subscription_data['status']
 
+        # trial_end mitsynchronisieren (z. B. Trial-Ende, manuelle Verlängerung
+        # in Stripe) — steht bereits vollständig im Event-Payload, kein
+        # zusätzlicher Stripe-Fetch nötig.
+        trial_end_ts = subscription_data.get('trial_end')
+        subscription.trial_end = (
+            datetime.fromtimestamp(trial_end_ts, tz=dt_timezone.utc) if trial_end_ts else None
+        )
+
         if old_status != new_status:
             subscription.stripe_status = new_status
             subscription.save()
 
             logger.info(f'Subscription {stripe_subscription_id} status changed: {old_status} -> {new_status}')
 
-            # If subscription becomes active after being in another state, send email
-            if new_status == 'active' and old_status != 'active':
+            # Trial → aktiv (Zahlung nach Trial-Ende erfolgreich) ist der
+            # erwartete, stille Übergang (vgl. #920) — keine zusätzliche
+            # "Abo aktualisiert"-Mail direkt nach der trial_will_end-Erinnerung.
+            # Für alle anderen Übergänge zu "active" (z. B. Reaktivierung nach
+            # past_due) bleibt die Benachrichtigung bestehen.
+            if new_status == 'active' and old_status not in ('active', 'trialing'):
                 MailService.send_template(
                     to=subscription.customer.billing_email,
                     template='subscription_updated',
@@ -452,6 +492,8 @@ class StripeWebhookHandler:
                     },
                     subject_override='Ihr Abonnement wurde aktualisiert',
                 )
+        else:
+            subscription.save(update_fields=['trial_end', 'updated_at'])
 
     @classmethod
     def _handle_subscription_deleted(cls, event: stripe.Event, db_event: StripeEvent) -> None:
@@ -497,6 +539,54 @@ class StripeWebhookHandler:
             logger.info(f'Suspended instance {instance.slug} due to subscription cancellation')
 
         logger.info(f'Subscription {stripe_subscription_id} cancelled, suspended {active_instances.count()} instances')
+
+    @classmethod
+    def _handle_subscription_trial_will_end(cls, event: stripe.Event, db_event: StripeEvent) -> None:
+        """
+        Handle customer.subscription.trial_will_end - Erinnerungsmail vor Trial-Ende.
+
+        Stripe feuert dieses Event automatisch ~3 Tage vor `trial_end` (kein
+        eigenes Scheduling nötig, vgl. #920).
+        """
+        subscription_data = event['data']['object']
+        stripe_subscription_id = subscription_data['id']
+
+        subscription = Subscription.objects.filter(stripe_subscription_id=stripe_subscription_id).first()
+        if not subscription:
+            logger.warning(f'Subscription not found for stripe_subscription_id {stripe_subscription_id}')
+            return
+
+        db_event.customer = subscription.customer
+        db_event.save()
+
+        trial_end_ts = subscription_data.get('trial_end')
+        trial_end = datetime.fromtimestamp(trial_end_ts, tz=dt_timezone.utc) if trial_end_ts else subscription.trial_end
+
+        customer = subscription.customer
+
+        MailService.send_template(
+            to=customer.billing_email,
+            template='trial_will_end',
+            context={
+                'contact_name': customer.contact_name,
+                'company_name': customer.company_name,
+                'trial_end_date': trial_end.strftime('%d.%m.%Y') if trial_end else '',
+                'monthly_price': cls._monthly_price(subscription),
+                'currency': 'EUR',
+            },
+            subject_override='Ihr Zenico-Trial endet in Kürze',
+        )
+
+        AuditService.log(
+            action='subscription.trial_will_end',
+            resource_type='Subscription',
+            resource_id=str(subscription.id),
+            customer=customer,
+            after={'trial_end': trial_end.isoformat() if trial_end else None},
+            note=f'Trial-Erinnerungsmail an {customer.billing_email} gesendet',
+        )
+
+        logger.info(f'Sent trial_will_end reminder to {customer.billing_email} for subscription {stripe_subscription_id}')
 
     @classmethod
     def _handle_invoice_paid(cls, event: stripe.Event, db_event: StripeEvent) -> None:
