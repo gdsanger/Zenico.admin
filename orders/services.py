@@ -112,6 +112,11 @@ class OrderService:
         (`tax_id_collection`). Ein `customer_update` entfällt hier bewusst,
         da die Session keinen bestehenden `customer` referenziert, sondern
         nur `customer_email` — Stripe legt den Customer erst im Webhook an.
+
+        `subscription_data.trial_period_days` gibt jeder neuen Bestellung
+        einen Trial (vgl. #920) — mit Kreditkarte, da Checkout eine
+        Zahlungsmethode ohnehin abfragt und die Instanz sofort provisioniert
+        wird (echte Docker-Ressourcen, kein kartenloser Trial).
         """
         plan = order.plan
         stripe_api = get_stripe()
@@ -146,7 +151,10 @@ class OrderService:
             'success_url': settings.ORDER_SUCCESS_URL,
             'cancel_url': settings.ORDER_CANCEL_URL,
             'metadata': metadata,
-            'subscription_data': {'metadata': metadata},
+            'subscription_data': {
+                'metadata': metadata,
+                'trial_period_days': settings.TRIAL_PERIOD_DAYS,
+            },
             'client_reference_id': str(order.id),
             'automatic_tax': {'enabled': True},
             'billing_address_collection': 'required',

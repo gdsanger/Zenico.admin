@@ -1,0 +1,25 @@
+{% extends "mail/base_text.txt" %}
+
+{% block content %}
+Ihr Zenico-Trial endet in Kürze
+
+Sehr geehrte/r {{ contact_name }},
+
+Ihre kostenlose Testphase für {{ company_name }} endet am {{ trial_end_date }}.
+
+────────────────────────────────────────────────────────
+WIE GEHT ES WEITER?
+
+Nach Trial-Ende wird Ihre hinterlegte Zahlungsmethode automatisch mit
+{{ monthly_price }} {{ currency }}/Monat belastet, Ihre Instanz läuft ohne
+Unterbrechung weiter.
+────────────────────────────────────────────────────────
+
+Sie müssen nichts tun, wenn Sie Zenico weiter nutzen möchten. Falls nicht,
+können Sie Ihr Abonnement jederzeit vor Ablauf der Testphase kündigen.
+
+Bei Fragen kontaktieren Sie uns bitte unter billing@zenico.app.
+
+Mit freundlichen Grüßen
+Ihr {{ mail_from_name }}-Team
+{% endblock %}

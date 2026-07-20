@@ -23,6 +23,8 @@ class CustomerService:
         instance_seats: int,
         stripe_subscription_id: str,
         ai_addon: bool = False,
+        stripe_status: str = 'active',
+        trial_end=None,
         **kwargs
     ) -> tuple[Customer, Subscription, Instance]:
         """
@@ -42,6 +44,9 @@ class CustomerService:
             instance_seats: Total instance seats for the subscription
             stripe_subscription_id: Stripe subscription ID
             ai_addon: Whether AI addon is active (default: False)
+            stripe_status: Initial Stripe subscription status (default: 'active';
+                pass 'trialing' for orders that started with a trial, #920)
+            trial_end: Trial end datetime, if the subscription started in trial
             **kwargs: Additional optional fields for Customer (billing_address,
                      billing_city, billing_postal_code, billing_country, vat_id,
                      stripe_customer_id, contact_phone, notes, status)
@@ -73,7 +78,8 @@ class CustomerService:
                 customer=customer,
                 plan=plan,
                 stripe_subscription_id=stripe_subscription_id,
-                stripe_status='active',  # New subscriptions start as active
+                stripe_status=stripe_status,
+                trial_end=trial_end,
                 user_seats_total=user_seats,
                 instance_seats_total=instance_seats,
                 ai_addon_active=ai_addon,

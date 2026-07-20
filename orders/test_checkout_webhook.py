@@ -86,7 +86,8 @@ class CheckoutWebhookTest(TestCase):
 
         subscription = Subscription.objects.get(customer=customer)
         self.assertEqual(subscription.stripe_subscription_id, 'sub_test_1')
-        self.assertEqual(subscription.stripe_status, 'active')
+        self.assertEqual(subscription.stripe_status, 'trialing')
+        self.assertIsNotNone(subscription.trial_end)
         self.assertEqual(subscription.user_seats_total, 5)
         self.assertTrue(subscription.ai_addon_active)
 
@@ -107,6 +108,7 @@ class CheckoutWebhookTest(TestCase):
         self.assertEqual(kwargs['template'], 'order_confirmed')
         self.assertEqual(kwargs['to'], 'max@acme.de')
         self.assertEqual(kwargs['context']['instance_url'], 'https://acme.zenico.app')
+        self.assertNotEqual(kwargs['context']['trial_end_date'], '')
 
     @patch('core.services.webhook.MailService.send_template')
     def test_master_instance_appears_in_pending_query(self, mock_mail):
