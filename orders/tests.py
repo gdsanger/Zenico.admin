@@ -181,6 +181,18 @@ class OrderCreateAPITest(TestCase):
         self.assertEqual(kwargs['tax_id_collection'], {'enabled': True})
 
     @patch('orders.services.get_stripe')
+    def test_allow_promotion_codes_enabled_on_session(self, mock_get_stripe):
+        """Gutscheincode-Feld im Checkout freischalten (#922)."""
+        stripe_mock, _ = _mock_stripe()
+        mock_get_stripe.return_value = stripe_mock
+
+        self._post(self.valid_payload)
+
+        _, kwargs = stripe_mock.checkout.Session.create.call_args
+        self.assertTrue(kwargs['allow_promotion_codes'])
+        self.assertNotIn('discounts', kwargs)
+
+    @patch('orders.services.get_stripe')
     def test_order_creation_writes_audit_log(self, mock_get_stripe):
         stripe_mock, _ = _mock_stripe()
         mock_get_stripe.return_value = stripe_mock

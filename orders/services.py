@@ -123,6 +123,13 @@ class OrderService:
         einen Trial (vgl. #920) — mit Kreditkarte, da Checkout eine
         Zahlungsmethode ohnehin abfragt und die Instanz sofort provisioniert
         wird (echte Docker-Ressourcen, kein kartenloser Trial).
+
+        `allow_promotion_codes` blendet das Gutscheincode-Feld im Checkout
+        ein (vgl. #922) und validiert Eingaben gegen die Promotion-Codes,
+        die `billing.coupon_service.create_stripe_coupon` beim Anlegen
+        eines Admin-Coupons in Stripe erzeugt. Schließt sich mit einem
+        expliziten `discounts=[...]` aus — hier nicht gesetzt, daher
+        unkritisch.
         """
         plan = order.plan
         stripe_api = get_stripe()
@@ -170,6 +177,7 @@ class OrderService:
             'automatic_tax': {'enabled': True},
             'billing_address_collection': 'required',
             'tax_id_collection': {'enabled': True},
+            'allow_promotion_codes': True,
         }
 
         session = stripe_api.checkout.Session.create(**session_params)
