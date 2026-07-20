@@ -23,6 +23,11 @@ class Order(models.Model):
         ('expired', 'Expired'),
     ]
 
+    BILLING_INTERVAL_CHOICES = [
+        ('monthly', 'Monthly'),
+        ('yearly', 'Yearly'),
+    ]
+
     # Status, die eine gewünschte Slug noch belegen (Race-Schutz gegen
     # Doppelbestellungen auf denselben Slug).
     OPEN_STATUSES = ['pending_payment', 'paid']
@@ -38,6 +43,13 @@ class Order(models.Model):
     )
     user_seats = models.PositiveIntegerField(verbose_name='user seats')
     ai_addon = models.BooleanField(default=False, verbose_name='AI addon')
+    billing_interval = models.CharField(
+        max_length=10,
+        choices=BILLING_INTERVAL_CHOICES,
+        default='monthly',
+        verbose_name='billing interval',
+        help_text='Determines which Stripe price (monthly/yearly) is used at checkout',
+    )
     slug = models.SlugField(
         max_length=10,
         validators=[SLUG_VALIDATOR],

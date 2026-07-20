@@ -98,6 +98,20 @@ class Plan(models.Model):
         blank=True,
         verbose_name='Stripe price ID (AI)'
     )
+    # Yearly counterparts of the two prices above (Stripe treats recurring
+    # prices as interval-specific objects, so a yearly plan needs its own
+    # price ID rather than reusing the monthly one — see #921). Left blank,
+    # a plan simply isn't offered with yearly billing.
+    stripe_price_id_user_yearly = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Stripe price ID (user, yearly)'
+    )
+    stripe_price_id_ai_yearly = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name='Stripe price ID (AI, yearly)'
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name='active',
@@ -113,6 +127,18 @@ class Plan(models.Model):
 
     def __str__(self):
         return self.display_name
+
+    def stripe_price_id_user_for_interval(self, billing_interval: str) -> str:
+        """Return the wired user-license price ID for 'monthly' or 'yearly'."""
+        if billing_interval == 'yearly':
+            return self.stripe_price_id_user_yearly
+        return self.stripe_price_id_user
+
+    def stripe_price_id_ai_for_interval(self, billing_interval: str) -> str:
+        """Return the wired AI-addon price ID for 'monthly' or 'yearly'."""
+        if billing_interval == 'yearly':
+            return self.stripe_price_id_ai_yearly
+        return self.stripe_price_id_ai
 
 
 class Customer(models.Model):

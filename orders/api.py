@@ -36,6 +36,7 @@ class OrderCreateAPIView(APIView):
         "plan": "standard",              // Plan-Name (Pflicht)
         "user_seats": 5,                // positive Ganzzahl (Pflicht)
         "ai_addon": true,               // optional, Default false
+        "billing_interval": "monthly",   // optional, "monthly" (Default) oder "yearly"
         "slug": "acme",                 // 2-10 lowercase alphanumerisch (Pflicht)
         "company_name": "Acme GmbH",    // Pflicht
         "contact_name": "Max Muster",   // Pflicht
@@ -82,6 +83,13 @@ class OrderCreateAPIView(APIView):
         if ai_addon and plan is not None and not plan.ai_addon_available:
             errors['ai_addon'] = 'Für diesen Plan ist kein KI-Addon verfügbar.'
 
+        # billing_interval
+        billing_interval = str(data.get('billing_interval', 'monthly')).strip().lower() or 'monthly'
+        if billing_interval not in ('monthly', 'yearly'):
+            errors['billing_interval'] = 'Ungültiges Abrechnungsintervall (monthly oder yearly).'
+        elif billing_interval == 'yearly' and plan is not None and not plan.stripe_price_id_user_yearly:
+            errors['billing_interval'] = 'Für diesen Plan ist kein Jahrespreis verfügbar.'
+
         # Slug
         slug = str(data.get('slug', '')).strip().lower()
         if not slug:
@@ -123,6 +131,7 @@ class OrderCreateAPIView(APIView):
                 plan=plan,
                 user_seats=user_seats,
                 ai_addon=ai_addon,
+                billing_interval=billing_interval,
                 slug=slug,
                 company_name=company_name,
                 contact_name=contact_name,

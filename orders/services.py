@@ -27,6 +27,7 @@ class OrderService:
         plan,
         user_seats: int,
         ai_addon: bool,
+        billing_interval: str = 'monthly',
         slug: str,
         company_name: str,
         contact_name: str,
@@ -56,6 +57,7 @@ class OrderService:
                 plan=plan,
                 user_seats=user_seats,
                 ai_addon=ai_addon,
+                billing_interval=billing_interval,
                 slug=slug,
                 company_name=company_name,
                 contact_name=contact_name,
@@ -86,6 +88,7 @@ class OrderService:
                     'plan': plan.name,
                     'user_seats': user_seats,
                     'ai_addon': ai_addon,
+                    'billing_interval': billing_interval,
                     'stripe_checkout_session_id': order.stripe_checkout_session_id,
                 },
                 note=f'Order created from web form: {company_name} ({slug}), plan {plan.name}',
@@ -102,6 +105,9 @@ class OrderService:
         und optional das KI-Addon (× 1). Es gibt keine Instanzgebühr mehr
         (vgl. #893/#896) — ein evtl. am Plan hinterlegtes
         `stripe_price_id_instance` fließt bewusst nicht ein.
+        `order.billing_interval` wählt zwischen den monatlichen und
+        jährlichen Price-IDs des Plans (vgl. #921); Stripe-Preise sind pro
+        Intervall getrennte Objekte, es gibt keinen Preis, der beides wäre.
         Setzt `metadata.order_id`, den der Webhook zum Anlegen von Kunde und
         Instanz benötigt. Speichert die Session-ID auf der Order.
 
@@ -121,27 +127,32 @@ class OrderService:
         plan = order.plan
         stripe_api = get_stripe()
 
+        price_id_user = plan.stripe_price_id_user_for_interval(order.billing_interval)
+        price_id_ai = plan.stripe_price_id_ai_for_interval(order.billing_interval)
+
         line_items = []
-        if plan.stripe_price_id_user:
+        if price_id_user:
             line_items.append({
-                'price': plan.stripe_price_id_user,
+                'price': price_id_user,
                 'quantity': order.user_seats,
             })
-        if order.ai_addon and plan.stripe_price_id_ai:
+        if order.ai_addon and price_id_ai:
             line_items.append({
-                'price': plan.stripe_price_id_ai,
+                'price': price_id_ai,
                 'quantity': 1,
             })
 
         if not line_items:
             raise ValueError(
-                f'Plan {plan.name} has no Stripe price IDs configured; cannot create checkout session'
+                f'Plan {plan.name} has no Stripe price IDs configured for '
+                f'billing_interval={order.billing_interval}; cannot create checkout session'
             )
 
         metadata = {
             'order_id': str(order.id),
             'slug': order.slug,
             'plan_name': plan.name,
+            'billing_interval': order.billing_interval,
         }
 
         session_params = {

@@ -275,22 +275,31 @@ def stripe_plan_save(request):
         # The field on the model is left untouched.
         stripe_product_id = request.POST.get('stripe_product_id', '').strip()
         stripe_price_id_user = request.POST.get('stripe_price_id_user', '').strip()
+        stripe_price_id_user_yearly = request.POST.get('stripe_price_id_user_yearly', '').strip()
         stripe_price_id_ai = request.POST.get('stripe_price_id_ai', '').strip()
+        stripe_price_id_ai_yearly = request.POST.get('stripe_price_id_ai_yearly', '').strip()
 
         # Stripe product is the product behind the user-license price. It must be
         # selected whenever a price is being wired, so prices can't be saved unchecked.
-        if (stripe_price_id_user or stripe_price_id_ai) and not stripe_product_id:
+        if (stripe_price_id_user or stripe_price_id_user_yearly or stripe_price_id_ai or stripe_price_id_ai_yearly) and not stripe_product_id:
             return JsonResponse({
                 'success': False,
                 'error': 'Stripe-Produkt ist erforderlich, wenn Preise hinterlegt werden'
             }, status=400)
 
-        # The user-license price must belong to the selected product.
+        # The user-license prices (monthly and yearly) must belong to the selected product.
         if stripe_price_id_user and stripe_product_id:
             if not StripeImportService.validate_price_product(stripe_price_id_user, stripe_product_id):
                 return JsonResponse({
                     'success': False,
                     'error': 'User-Preis gehört nicht zum ausgewählten Produkt'
+                }, status=400)
+
+        if stripe_price_id_user_yearly and stripe_product_id:
+            if not StripeImportService.validate_price_product(stripe_price_id_user_yearly, stripe_product_id):
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Jährlicher User-Preis gehört nicht zum ausgewählten Produkt'
                 }, status=400)
 
         # The AI addon lives in its own Stripe product, so it is intentionally
@@ -299,7 +308,9 @@ def stripe_plan_save(request):
         # Update plan
         plan.stripe_product_id = stripe_product_id
         plan.stripe_price_id_user = stripe_price_id_user
+        plan.stripe_price_id_user_yearly = stripe_price_id_user_yearly
         plan.stripe_price_id_ai = stripe_price_id_ai
+        plan.stripe_price_id_ai_yearly = stripe_price_id_ai_yearly
         plan.save()
 
         return JsonResponse({

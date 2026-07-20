@@ -36,8 +36,10 @@ class PlanAdmin(admin.ModelAdmin):
             'fields': [
                 'stripe_product_id',
                 'stripe_price_id_user',
+                'stripe_price_id_user_yearly',
                 'stripe_price_id_instance',
                 'stripe_price_id_ai',
+                'stripe_price_id_ai_yearly',
             ],
             'classes': ['collapse'],
         }),
